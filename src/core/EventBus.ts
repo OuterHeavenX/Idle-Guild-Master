@@ -8,6 +8,8 @@ export type EventMap = {
   'combat:hero-down': { heroId: string; zoneLevel: number; wave: number };
   'combat:party-defeated': { zoneLevel: number; wave: number; recoveryTicks: number };
   'combat:party-recovered': { zoneLevel: number };
+  'combat:active-skill': { heroId: string; skillName: string; cooldownTicks: number };
+  'input:active-skill': { heroId: string };
   'loot:drop': { itemName: string; rarity: string; gold?: number; shards?: number };
   'progress:zone-ready': { zoneLevel: number };
   'progress:zone-complete': { zoneLevel: number; gold: number; shards: number };
