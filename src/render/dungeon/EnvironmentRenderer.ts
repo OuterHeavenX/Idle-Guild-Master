@@ -3,12 +3,12 @@ import { Container, Graphics, Sprite } from 'pixi.js';
 export class EnvironmentRenderer {
   readonly container = new Container();
   readonly ambient = new Container();
-  private backdrop = Sprite.from(`${import.meta.env.BASE_URL}assets/dungeon/ashen-crypt/environment/crypt-stage.svg`);
+  private backdrop = Sprite.from('assets/dungeon/ashen-crypt/environment/crypt-stage.svg');
   private fog = new Graphics();
   private ash = new Graphics();
   private time = 0;
-  private width = 1;
-  private height = 1;
+  private sceneWidth = 1;
+  private sceneHeight = 1;
 
   constructor() {
     this.container.addChild(this.backdrop);
@@ -16,8 +16,8 @@ export class EnvironmentRenderer {
   }
 
   resize(width: number, height: number): void {
-    this.width = width;
-    this.height = height;
+    this.sceneWidth = width;
+    this.sceneHeight = height;
     this.backdrop.position.set(0, 0);
     this.backdrop.width = width;
     this.backdrop.height = height;
@@ -33,8 +33,8 @@ export class EnvironmentRenderer {
   }
 
   private drawAtmosphere(): void {
-    const w = this.width;
-    const h = this.height;
+    const w = this.sceneWidth;
+    const h = this.sceneHeight;
     this.fog.clear();
     for (let i = 0; i < 6; i++) {
       const x = w * (0.04 + i * 0.19);
