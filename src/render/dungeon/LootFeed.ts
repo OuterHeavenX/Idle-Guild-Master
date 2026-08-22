@@ -5,7 +5,7 @@ type FeedLine = { text: Text; life: number; rare: boolean };
 export class LootFeed extends Container {
   private lines: FeedLine[] = [];
   private bg = new Graphics();
-  private width = 150;
+  private panelWidth = 150;
 
   constructor() {
     super();
@@ -21,7 +21,7 @@ export class LootFeed extends Container {
         fill: rare ? 0xe0c5ff : 0xd8d0c6,
         fontWeight: rare ? '700' : '500',
         wordWrap: true,
-        wordWrapWidth: this.width - 16,
+        wordWrapWidth: this.panelWidth - 16,
       }),
     });
     this.lines.unshift({ text, life: 4.2, rare });
@@ -31,7 +31,7 @@ export class LootFeed extends Container {
   }
 
   resize(width: number): void {
-    this.width = width;
+    this.panelWidth = width;
     this.lines.forEach((line) => { line.text.style.wordWrapWidth = width - 16; });
     this.drawBackground();
     this.layoutLines();
@@ -60,7 +60,7 @@ export class LootFeed extends Container {
     this.bg.clear();
     if (!this.lines.length) return;
     const height = 12 + this.lines.length * 15;
-    this.bg.roundRect(0, 0, this.width, height, 8).fill({ color: 0x090b12, alpha: 0.58 }).stroke({ color: 0x4c3d51, width: 1, alpha: 0.45 });
+    this.bg.roundRect(0, 0, this.panelWidth, height, 8).fill({ color: 0x090b12, alpha: 0.58 }).stroke({ color: 0x4c3d51, width: 1, alpha: 0.45 });
   }
 
   private layoutLines(): void {
