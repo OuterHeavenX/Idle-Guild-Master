@@ -6,8 +6,14 @@ import { ViewManager } from './render/ViewManager';
 import { ClassSystem } from './systems/ClassSystem';
 import { CraftingSystem } from './systems/CraftingSystem';
 
+declare global {
+  interface Window { __IGM_BOOTED__?: boolean; }
+}
+
 const appRoot = document.querySelector<HTMLDivElement>('#app');
 if (!appRoot) throw new Error('Missing #app root.');
+window.__IGM_BOOTED__ = true;
+document.getElementById('boot-status')?.remove();
 
 appRoot.innerHTML = `
   <main class="shell">
