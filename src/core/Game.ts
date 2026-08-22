@@ -52,6 +52,7 @@ export class Game {
       this.state.guild.gold += gold;
       this.state.guild.shards += shards;
       this.bounties.progress('daily-kills', 1, this.state.guild);
+      this.state.save();
     });
 
     this.bus.on('progress:zone-complete', ({ gold, shards }) => {
