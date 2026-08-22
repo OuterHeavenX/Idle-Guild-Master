@@ -1,7 +1,12 @@
+export type CombatStyle = 'melee' | 'heal' | 'projectile' | 'spell' | 'enemy';
 export type EventMap = {
-  'combat:damage': { sourceId: string; targetId: string; amount: number; crit: boolean };
+  'combat:damage': { sourceId: string; targetId: string; amount: number; crit: boolean; style?: CombatStyle };
   'combat:heal': { sourceId: string; targetId: string; amount: number };
-  'loot:drop': { itemName: string; rarity: string };
+  'combat:status': { targetId: string; status: 'burn' | 'freeze'; active: boolean };
+  'combat:enemy-spawn': { enemyId: string; name: string; level: number };
+  'combat:enemy-death': { enemyId: string; wave: number; zoneLevel: number };
+  'loot:drop': { itemName: string; rarity: string; gold?: number; shards?: number };
+  'progress:zone-ready': { zoneLevel: number };
   'view:change': { view: string };
   'save:complete': undefined;
   'raid:phase': { phase: number };
