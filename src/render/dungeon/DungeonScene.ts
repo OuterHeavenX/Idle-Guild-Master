@@ -39,22 +39,27 @@ export class DungeonScene extends Container {
     this.environment.resize(width, height);
 
     const compact = width < 460;
-    const formation: Array<[number, number]> = [
-      [width * 0.47, height * 0.61],
-      [width * 0.30, height * 0.66],
-      [width * 0.17, height * 0.73],
-      [width * 0.55, height * 0.73],
+    const formationByJob: Record<string, [number, number]> = {
+      guardian: [width * 0.52, height * 0.61],
+      cleric: [width * 0.31, height * 0.58],
+      ranger: [width * 0.18, height * 0.72],
+      arcanist: [width * 0.61, height * 0.72],
+    };
+    const fallback: Array<[number, number]> = [
+      [width * 0.52, height * 0.61],
+      [width * 0.31, height * 0.58],
+      [width * 0.18, height * 0.72],
+      [width * 0.61, height * 0.72],
     ];
     this.heroes.forEach((hero, i) => {
-      const point = formation[i]!;
+      const point = formationByJob[hero.job] ?? fallback[i]!;
       hero.position.set(point[0], point[1]);
-      hero.scale.set(compact ? 0.96 : 1.08);
+      hero.scale.set(compact ? 0.94 : 1.06);
     });
 
-    this.enemy.position.set(width * 0.69, height * 0.46);
-    this.enemy.scale.set(compact ? 1 : 1.08);
+    this.enemy.position.set(width * 0.72, height * 0.43);
 
-    this.feed.position.set(10, height * 0.31);
+    this.feed.position.set(10, height * 0.29);
     this.feed.resize(Math.min(154, width * 0.39));
     this.hud.update(width, height);
   }
@@ -73,20 +78,27 @@ export class DungeonScene extends Container {
     return hero ? [hero.x, hero.y - 38] : [this.sceneWidth * 0.35, this.sceneHeight * 0.65];
   }
 
+  private projectileOrigin(hero: HeroActor): [number, number] {
+    if (hero.job === 'ranger') return [hero.x + 28, hero.y - 50];
+    if (hero.job === 'cleric') return [hero.x + 20, hero.y - 59];
+    if (hero.job === 'arcanist') return [hero.x + 22, hero.y - 60];
+    return [hero.x + 18, hero.y - 42];
+  }
+
   private bind(): void {
     this.bus.on('combat:damage', ({ sourceId, targetId, amount, crit, style }) => {
       if (sourceId.startsWith('hero-')) {
         const hero = this.heroes.find((x) => x.heroId === sourceId);
         hero?.playAttack();
-        const [sx, sy] = this.heroPos(sourceId);
-        if (style === 'projectile' || style === 'spell') {
-          this.fx.projectile(sx + 18, sy, this.enemy.x - 16, this.enemy.y - 44, style === 'spell');
+        if (hero && (style === 'projectile' || style === 'spell')) {
+          const [sx, sy] = this.projectileOrigin(hero);
+          this.fx.projectile(sx, sy, this.enemy.x - 16, this.enemy.y - 48, style === 'spell');
         }
         this.enemy.playHurt();
-        this.fx.damage(this.enemy.x, this.enemy.y - 82, amount, crit);
-        this.fx.impact(this.enemy.x - 8, this.enemy.y - 40, style === 'spell' ? 0x789cff : 0xffb56b);
+        this.fx.damage(this.enemy.x, this.enemy.y - 88, amount, crit);
+        this.fx.impact(this.enemy.x - 8, this.enemy.y - 44, style === 'spell' ? 0x789cff : 0xffb56b);
       } else if (sourceId === 'status-burn') {
-        this.fx.damage(this.enemy.x, this.enemy.y - 82, amount, false);
+        this.fx.damage(this.enemy.x, this.enemy.y - 88, amount, false);
       } else {
         this.enemy.playAttack();
         const hero = this.heroes.find((x) => x.heroId === targetId);
@@ -104,7 +116,7 @@ export class DungeonScene extends Container {
     });
 
     this.bus.on('combat:status', ({ status, active }) => {
-      if (active) this.fx.status(this.enemy.x, this.enemy.y - 38, status);
+      if (active) this.fx.status(this.enemy.x, this.enemy.y - 42, status);
     });
 
     this.bus.on('combat:enemy-death', () => {
