@@ -1,4 +1,4 @@
-import { Container } from 'pixi.js';
+import { Container, Rectangle } from 'pixi.js';
 import type { EventBus } from '../../core/EventBus';
 import type { StateManager } from '../../core/StateManager';
 import type { CombatSystem } from '../../systems/CombatSystem';
@@ -8,6 +8,7 @@ import { DungeonHud } from './DungeonHud';
 import { LootFeed } from './LootFeed';
 import { CombatEffects } from '../effects/CombatEffects';
 import { EnvironmentRenderer } from './EnvironmentRenderer';
+import { ActiveHeroControls } from './ActiveHeroControls';
 
 export class DungeonScene extends Container {
   private environment = new EnvironmentRenderer();
@@ -17,25 +18,55 @@ export class DungeonScene extends Container {
   private hud: DungeonHud;
   private feed = new LootFeed();
   private fx = new CombatEffects();
+  private controls = new ActiveHeroControls();
   private sceneWidth = 1;
   private sceneHeight = 1;
+  private controlledHero?: HeroActor;
+  private draggingControlledHero = false;
 
   constructor(private state: StateManager, private combat: CombatSystem, private bus: EventBus) {
     super();
     this.hud = new DungeonHud(state, combat);
-    this.addChild(this.environment.container, this.environment.ambient, this.actors, this.fx.container, this.hud, this.feed);
+    this.eventMode = 'static';
+    this.addChild(this.environment.container, this.environment.ambient, this.actors, this.fx.container, this.hud, this.feed, this.controls);
     state.heroes.slice(0, 4).forEach((h, i) => {
       const actor = new HeroActor(state, h.id, i);
+      if (i === 0) {
+        this.controlledHero = actor;
+        actor.setControlled(true);
+        actor.on('pointerdown', (event) => {
+          const hero = this.state.heroes.find((entry) => entry.id === actor.heroId);
+          if (!hero?.alive || this.combat.recovering || this.combat.canAdvanceZone) return;
+          this.draggingControlledHero = true;
+          actor.cursor = 'grabbing';
+          event.stopPropagation();
+        });
+      }
       this.heroes.push(actor);
       this.actors.addChild(actor);
     });
     this.actors.addChild(this.enemy);
+    this.on('pointermove', (event) => {
+      if (!this.draggingControlledHero || !this.controlledHero) return;
+      const hero = this.state.heroes.find((entry) => entry.id === this.controlledHero!.heroId);
+      if (!hero?.alive) {
+        this.stopDragging();
+        return;
+      }
+      const point = event.getLocalPosition(this.actors);
+      const x = Math.max(this.sceneWidth * 0.14, Math.min(this.sceneWidth * 0.68, point.x));
+      const y = Math.max(this.sceneHeight * 0.49, Math.min(this.sceneHeight * 0.75, point.y));
+      this.controlledHero.position.set(x, y);
+    });
+    this.on('pointerup', () => this.stopDragging());
+    this.on('pointerupoutside', () => this.stopDragging());
     this.bind();
   }
 
   resize(width: number, height: number): void {
     this.sceneWidth = width;
     this.sceneHeight = height;
+    this.hitArea = new Rectangle(0, 0, width, height);
     this.environment.resize(width, height);
 
     const compact = width < 460;
@@ -58,9 +89,9 @@ export class DungeonScene extends Container {
     });
 
     this.enemy.position.set(width * 0.72, height * 0.43);
-
     this.feed.position.set(10, height * 0.29);
     this.feed.resize(Math.min(154, width * 0.39));
+    this.controls.layout(width, height);
     this.hud.update(width, height);
   }
 
@@ -71,6 +102,17 @@ export class DungeonScene extends Container {
     this.fx.update(dt);
     this.feed.update(dt);
     this.hud.update(this.sceneWidth, this.sceneHeight);
+  }
+
+  private stopDragging(): void {
+    this.draggingControlledHero = false;
+    if (this.controlledHero) this.controlledHero.cursor = 'grab';
+  }
+
+  private resetControlledHero(): void {
+    if (!this.controlledHero) return;
+    this.stopDragging();
+    this.controlledHero.position.set(this.sceneWidth * 0.52, this.sceneHeight * 0.61);
   }
 
   private heroPos(id: string): [number, number] {
@@ -132,13 +174,16 @@ export class DungeonScene extends Container {
     this.bus.on('combat:hero-down', ({ heroId }) => {
       const hero = this.state.heroes.find((entry) => entry.id === heroId);
       if (hero) this.feed.add(`${hero.name} is DOWN`, true);
+      if (heroId === this.controlledHero?.heroId) this.stopDragging();
     });
 
     this.bus.on('combat:party-defeated', ({ recoveryTicks }) => {
+      this.stopDragging();
       this.feed.add(`PARTY DEFEATED · Retreating ${recoveryTicks}s`, true);
     });
 
     this.bus.on('combat:party-recovered', () => {
+      this.resetControlledHero();
       this.feed.add('Party recovered · Wave 1 retry', true);
     });
 
