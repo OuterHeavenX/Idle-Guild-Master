@@ -2,7 +2,7 @@ name: Deploy Idle Guild Master to GitHub Pages
 
 on:
   push:
-    branches: [main, feature/dungeon-vertical-slice]
+    branches: [main, feature/dungeon-vertical-slice, feature/active-hero-control]
   workflow_dispatch:
 
 permissions:
