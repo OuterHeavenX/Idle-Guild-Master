@@ -8,7 +8,6 @@ import { DungeonHud } from './DungeonHud';
 import { LootFeed } from './LootFeed';
 import { CombatEffects } from '../effects/CombatEffects';
 import { EnvironmentRenderer } from './EnvironmentRenderer';
-import { ActiveHeroControls } from './ActiveHeroControls';
 
 export class DungeonScene extends Container {
   private environment = new EnvironmentRenderer();
@@ -18,7 +17,6 @@ export class DungeonScene extends Container {
   private hud: DungeonHud;
   private feed = new LootFeed();
   private fx = new CombatEffects();
-  private controls = new ActiveHeroControls();
   private sceneWidth = 1;
   private sceneHeight = 1;
   private controlledHero?: HeroActor;
@@ -28,7 +26,7 @@ export class DungeonScene extends Container {
     super();
     this.hud = new DungeonHud(state, combat);
     this.eventMode = 'static';
-    this.addChild(this.environment.container, this.environment.ambient, this.actors, this.fx.container, this.hud, this.feed, this.controls);
+    this.addChild(this.environment.container, this.environment.ambient, this.actors, this.fx.container, this.hud, this.feed);
     state.heroes.slice(0, 4).forEach((h, i) => {
       const actor = new HeroActor(state, h.id, i);
       if (i === 0) {
@@ -91,7 +89,6 @@ export class DungeonScene extends Container {
     this.enemy.position.set(width * 0.72, height * 0.43);
     this.feed.position.set(10, height * 0.29);
     this.feed.resize(Math.min(154, width * 0.39));
-    this.controls.layout(width, height);
     this.hud.update(width, height);
   }
 
