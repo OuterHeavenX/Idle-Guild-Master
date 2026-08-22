@@ -9,7 +9,7 @@ export type HeroVisual = {
 
 const assetFor = (job: string): string => {
   const safe = ['guardian', 'cleric', 'ranger', 'arcanist'].includes(job) ? job : 'guardian';
-  return `${import.meta.env.BASE_URL}assets/dungeon/ashen-crypt/heroes/${safe}.svg`;
+  return `assets/dungeon/ashen-crypt/heroes/${safe}.svg`;
 };
 
 export const createHeroVisual = (job: string): HeroVisual => {
