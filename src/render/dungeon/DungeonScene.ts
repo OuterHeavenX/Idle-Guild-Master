@@ -108,8 +108,8 @@ export class DungeonScene extends Container {
       }
     });
 
-    this.bus.on('combat:heal', ({ targetId, amount }) => {
-      this.heroes.find((hero) => hero.job === 'cleric')?.playHeal();
+    this.bus.on('combat:heal', ({ sourceId, targetId, amount }) => {
+      if (sourceId.startsWith('hero-')) this.heroes.find((hero) => hero.job === 'cleric')?.playHeal();
       const [x, y] = this.heroPos(targetId);
       this.fx.heal(x, y - 34, amount);
       this.fx.healPulse(x, y + 10);
@@ -129,8 +129,26 @@ export class DungeonScene extends Container {
       this.fx.spawn(this.enemy.x, this.enemy.y - 12);
     });
 
-    this.bus.on('loot:drop', ({ itemName, rarity, gold }) => {
-      this.feed.add(gold ? `+${gold} Gold · ${itemName}` : itemName, rarity !== 'common');
+    this.bus.on('combat:hero-down', ({ heroId }) => {
+      const hero = this.state.heroes.find((entry) => entry.id === heroId);
+      if (hero) this.feed.add(`${hero.name} is DOWN`, true);
+    });
+
+    this.bus.on('combat:party-defeated', ({ recoveryTicks }) => {
+      this.feed.add(`PARTY DEFEATED · Retreating ${recoveryTicks}s`, true);
+    });
+
+    this.bus.on('combat:party-recovered', () => {
+      this.feed.add('Party recovered · Wave 1 retry', true);
+    });
+
+    this.bus.on('loot:drop', ({ itemName, rarity, gold, shards }) => {
+      const rewards = [gold ? `+${gold} Gold` : '', shards ? `+${shards} Shard` : ''].filter(Boolean).join(' · ');
+      this.feed.add(rewards ? `${rewards} · ${itemName}` : itemName, rarity !== 'common');
+    });
+
+    this.bus.on('progress:zone-complete', ({ gold, shards }) => {
+      this.feed.add(`Zone bonus · +${gold} Gold · +${shards} Shard`, true);
     });
 
     this.bus.on('progress:zone-ready', () => this.feed.add('Zone cleared · Next zone ready', true));
