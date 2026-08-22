@@ -1,55 +1,9 @@
 import * as THREE from 'three';
 
 export class ThreeRenderer {
-  readonly renderer: THREE.WebGLRenderer;
-  private readonly scene = new THREE.Scene();
-  private readonly camera = new THREE.PerspectiveCamera(55, 1, 0.1, 100);
-  private readonly rune: THREE.Mesh;
-  private time = 0;
-
-  constructor(host: HTMLElement) {
-    this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    this.renderer.domElement.className = 'three-layer';
-    host.appendChild(this.renderer.domElement);
-
-    this.scene.background = new THREE.Color(0x070910);
-    this.scene.fog = new THREE.FogExp2(0x070910, 0.06);
-    this.camera.position.set(0, 0, 7);
-
-    const geometry = new THREE.TorusKnotGeometry(1.35, 0.18, 96, 12);
-    const material = new THREE.MeshStandardMaterial({
-      color: 0x4b1f63,
-      emissive: 0x1f082b,
-      roughness: 0.38,
-      metalness: 0.65
-    });
-    this.rune = new THREE.Mesh(geometry, material);
-    this.rune.position.z = -1;
-    this.scene.add(this.rune);
-
-    const key = new THREE.PointLight(0xff7a3d, 35, 20);
-    key.position.set(-3, 3, 5);
-    this.scene.add(key);
-
-    const fill = new THREE.PointLight(0x4a6dff, 20, 15);
-    fill.position.set(4, -2, 2);
-    this.scene.add(fill);
-    this.scene.add(new THREE.AmbientLight(0x6e6680, 0.7));
-  }
-
-  resize(width: number, height: number): void {
-    this.camera.aspect = Math.max(0.01, width / height);
-    this.camera.updateProjectionMatrix();
-    this.renderer.setSize(width, height, false);
-  }
-
-  render(deltaSeconds: number): void {
-    this.time += deltaSeconds;
-    this.rune.rotation.x = this.time * 0.07;
-    this.rune.rotation.y = this.time * 0.11;
-    const pulse = 1 + Math.sin(this.time * 0.8) * 0.04;
-    this.rune.scale.setScalar(pulse);
-    this.renderer.render(this.scene, this.camera);
-  }
+  readonly renderer: THREE.WebGLRenderer; private readonly scene=new THREE.Scene(); private readonly camera=new THREE.PerspectiveCamera(50,1,.1,50); private time=0; private fogA:THREE.Mesh; private fogB:THREE.Mesh;
+  constructor(host:HTMLElement){ this.renderer=new THREE.WebGLRenderer({antialias:false,alpha:true,powerPreference:'high-performance'});this.renderer.setPixelRatio(Math.min(window.devicePixelRatio,1.5));this.renderer.domElement.className='three-layer';host.appendChild(this.renderer.domElement);this.renderer.setClearColor(0x070913,1);this.scene.fog=new THREE.FogExp2(0x0b0d18,.11);this.camera.position.set(0,0,6);
+    const geo=new THREE.PlaneGeometry(8,3);const matA=new THREE.MeshBasicMaterial({color:0x6e78a8,transparent:true,opacity:.045,depthWrite:false});const matB=new THREE.MeshBasicMaterial({color:0xff8b4d,transparent:true,opacity:.025,depthWrite:false});this.fogA=new THREE.Mesh(geo,matA);this.fogB=new THREE.Mesh(geo.clone(),matB);this.fogA.position.set(-1,-.8,-1);this.fogB.position.set(1.5,.5,-2);this.scene.add(this.fogA,this.fogB); }
+  resize(width:number,height:number):void{this.camera.aspect=Math.max(.01,width/height);this.camera.updateProjectionMatrix();this.renderer.setSize(width,height,false);}
+  render(dt:number):void{this.time+=dt;this.fogA.position.x=Math.sin(this.time*.13)*.8-1;this.fogB.position.x=Math.cos(this.time*.1)*1.1+1.5;this.fogA.rotation.z=Math.sin(this.time*.08)*.05;this.renderer.render(this.scene,this.camera);}
 }
