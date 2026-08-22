@@ -3,10 +3,14 @@ export type EventMap = {
   'combat:damage': { sourceId: string; targetId: string; amount: number; crit: boolean; style?: CombatStyle };
   'combat:heal': { sourceId: string; targetId: string; amount: number };
   'combat:status': { targetId: string; status: 'burn' | 'freeze'; active: boolean };
-  'combat:enemy-spawn': { enemyId: string; name: string; level: number };
+  'combat:enemy-spawn': { enemyId: string; name: string; level: number; wave: number };
   'combat:enemy-death': { enemyId: string; wave: number; zoneLevel: number };
+  'combat:hero-down': { heroId: string; zoneLevel: number; wave: number };
+  'combat:party-defeated': { zoneLevel: number; wave: number; recoveryTicks: number };
+  'combat:party-recovered': { zoneLevel: number };
   'loot:drop': { itemName: string; rarity: string; gold?: number; shards?: number };
   'progress:zone-ready': { zoneLevel: number };
+  'progress:zone-complete': { zoneLevel: number; gold: number; shards: number };
   'view:change': { view: string };
   'save:complete': undefined;
   'raid:phase': { phase: number };
