@@ -22,7 +22,7 @@ export class DungeonHud extends Container {
     this.addChild(this.enemyBar, this.zoneText, this.enemyText, this.waveText);
     for (let i = 0; i < 4; i++) {
       const g = new Graphics();
-      const t = new Text({ text: '', style: new TextStyle({ fontFamily: 'system-ui', fontSize: 9, fontWeight: '650', fill: 0xe7ded2 }) });
+      const t = new Text({ text: '', style: new TextStyle({ fontFamily: 'system-ui', fontSize: 9, fontWeight: '700', fill: 0xe7ded2 }) });
       this.heroBars.push(g);
       this.heroTexts.push(t);
       this.addChild(g, t);
