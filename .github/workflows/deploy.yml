@@ -32,7 +32,8 @@ jobs:
           VITE_BUILD_SHA: ${{ github.sha }}
           VITE_BUILD_BRANCH: ${{ github.ref_name }}
       - name: Write deployment provenance
-        run: node -e "require('node:fs').writeFileSync('dist/build-info.json', JSON.stringify({ branch: process.env.GITHUB_REF_NAME, sha: process.env.GITHUB_SHA, builtAt: new Date().toISOString() }, null, 2) + '\n')"
+        run: |
+          node -e "require('node:fs').writeFileSync('dist/build-info.json', JSON.stringify({ branch: process.env.GITHUB_REF_NAME, sha: process.env.GITHUB_SHA, builtAt: new Date().toISOString() }, null, 2) + '\n')"
       - name: Configure Pages
         uses: actions/configure-pages@v5
       - name: Upload Pages artifact
