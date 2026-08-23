@@ -2,7 +2,7 @@ name: Deploy Idle Guild Master to GitHub Pages
 
 on:
   push:
-    branches: [feature/playable-rpg-integration]
+    branches: [feature/long-rain-expanded-guild-town]
   workflow_dispatch:
 
 permissions:
@@ -16,7 +16,7 @@ concurrency:
 
 jobs:
   build:
-    if: github.ref_name == 'feature/playable-rpg-integration'
+    if: github.ref_name == 'feature/long-rain-expanded-guild-town'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -27,6 +27,8 @@ jobs:
           node-version: 22
       - name: Install dependencies
         run: npm install
+      - name: Test
+        run: npm test
       - name: Build
         run: npm run build
         env:
@@ -35,12 +37,18 @@ jobs:
       - name: Write deployment provenance
         run: |
           node -e "require('node:fs').writeFileSync('dist/build-info.json', JSON.stringify({ branch: process.env.GITHUB_REF_NAME, sha: process.env.GITHUB_SHA, builtAt: new Date().toISOString() }, null, 2) + '\n')"
+      - name: Prepare root and branch preview
+        run: |
+          rm -rf page-artifact
+          mkdir -p page-artifact/long-rain-expanded-guild-town
+          cp -R dist/. page-artifact/
+          cp -R dist/. page-artifact/long-rain-expanded-guild-town/
       - name: Configure Pages
         uses: actions/configure-pages@v5
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: ./dist
+          path: ./page-artifact
   deploy:
     environment:
       name: github-pages
