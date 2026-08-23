@@ -42,15 +42,26 @@ export class Game {
       this.state.guild.gold += result.gold;
     }
 
+    this.combat.resetEnemy(this.state.zoneLevel, true);
+
     window.setInterval(() => this.state.save(), 10_000);
     window.addEventListener('beforeunload', () => this.state.save());
     window.addEventListener('resize', () => this.resize());
 
-    this.bus.on('loot:drop', () => {
-      this.state.guild.gold += 25;
-      this.state.guild.shards += 1;
+    this.bus.on('loot:drop', ({ gold = 0, shards = 0 }) => {
+      this.state.guild.gold += gold;
+      this.state.guild.shards += shards;
       this.bounties.progress('daily-kills', 1, this.state.guild);
+      this.state.save();
     });
+
+    this.bus.on('progress:zone-complete', ({ gold, shards }) => {
+      this.state.guild.gold += gold;
+      this.state.guild.shards += shards;
+      this.state.save();
+    });
+    this.bus.on('combat:party-defeated', () => this.state.save());
+    this.bus.on('combat:party-recovered', () => this.state.save());
 
     this.resize();
     this.animationFrame = requestAnimationFrame(this.frame);

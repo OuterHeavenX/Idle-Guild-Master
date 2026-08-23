@@ -2,7 +2,7 @@ name: Deploy Idle Guild Master to GitHub Pages
 
 on:
   push:
-    branches: [main]
+    branches: [main, feature/dungeon-vertical-slice, feature/active-hero-control]
   workflow_dispatch:
 
 permissions:
@@ -18,8 +18,10 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout acceptance build
         uses: actions/checkout@v4
+        with:
+          ref: feature/story-hub-first-quest
 
       - name: Setup Node
         uses: actions/setup-node@v4

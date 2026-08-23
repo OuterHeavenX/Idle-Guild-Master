@@ -64,10 +64,22 @@ export class StateManager {
   }
 
   apply(save: GameSave): void {
-    this.heroes = save.heroes.map((hero) => new Hero(hero));
+    this.heroes = save.heroes.map((hero) => {
+      const normalized = {
+        ...hero,
+        currentHp: Math.max(0, Math.min(hero.stats.maxHp, Number.isFinite(hero.currentHp) ? hero.currentHp : hero.stats.maxHp)),
+      };
+      return new Hero(normalized);
+    });
     this.guild = new Guild(save.guild);
     this.activeView = save.activeView;
-    this.zoneLevel = save.zoneLevel;
+    this.zoneLevel = Math.max(1, Math.floor(save.zoneLevel || 1));
+
+    // A reload during the short defeat countdown must never strand the active party at 0 HP.
+    const activeParty = this.heroes.slice(0, 4);
+    if (activeParty.length > 0 && activeParty.every((hero) => !hero.alive)) {
+      activeParty.forEach((hero) => hero.heal(hero.stats.maxHp));
+    }
   }
 
   exportJson(): string { return JSON.stringify(this.snapshot()); }
