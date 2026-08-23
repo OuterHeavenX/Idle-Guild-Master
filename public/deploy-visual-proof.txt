@@ -1,0 +1,3 @@
+Guild Hall visual proof deployment marker.
+Branch: feature/guild-town-authored-art
+Purpose: force a fresh GitHub Pages deployment for physical iPhone acceptance.
