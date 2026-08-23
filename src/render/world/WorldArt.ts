@@ -13,6 +13,8 @@ export type NpcRole =
   | 'elder'
   | 'traveler';
 
+type AmbientNpcRole = Exclude<NpcRole, 'steward' | 'smith' | 'cleric' | 'ranger' | 'arcanist'>;
+
 const DEBUG = new URLSearchParams(location.search).get('storydebug') === '1';
 
 export async function loadOptionalSprite(
@@ -86,7 +88,8 @@ export function createNpcSilhouette(role: NpcRole): Container {
       .circle(-37, -93, 9).fill({ color: 0x7dd3df, alpha: 0.82 })
       .circle(-37, -93, 17).stroke({ color: 0x8c7be1, width: 2, alpha: 0.42 });
   } else {
-    const palettes: Record<Exclude<NpcRole, 'steward' | 'smith' | 'cleric' | 'ranger' | 'arcanist'>, [number, number, number]> = {
+    const ambientRole = role as AmbientNpcRole;
+    const palettes: Record<AmbientNpcRole, [number, number, number]> = {
       resident: [0x4e4a43, 0x34312e, 0xc29673],
       worker: [0x594333, 0x33291f, 0xb9805f],
       guard: [0x3f4852, 0x272d34, 0xb98767],
@@ -94,8 +97,8 @@ export function createNpcSilhouette(role: NpcRole): Container {
       elder: [0x554f53, 0x39353b, 0xb98e74],
       traveler: [0x3f4b47, 0x2b3431, 0xb77f61],
     };
-    const [cloth, dark, skin] = palettes[role];
-    const childScale = role === 'child' ? 0.72 : 1;
+    const [cloth, dark, skin] = palettes[ambientRole];
+    const childScale = ambientRole === 'child' ? 0.72 : 1;
     body
       .moveTo(-25, 6).lineTo(-19, -57).lineTo(0, -81).lineTo(20, -57).lineTo(27, 6).closePath()
       .fill(cloth).stroke({ color: dark, width: 3 })
@@ -103,22 +106,22 @@ export function createNpcSilhouette(role: NpcRole): Container {
       .moveTo(-15, -82).quadraticCurveTo(0, -94, 16, -81).lineTo(12, -68).lineTo(-12, -68).closePath()
       .fill(dark);
 
-    if (role === 'worker') {
+    if (ambientRole === 'worker') {
       accent.moveTo(-27, -47).lineTo(25, -47).stroke({ color: 0x8a6745, width: 6 });
-    } else if (role === 'guard') {
+    } else if (ambientRole === 'guard') {
       accent
         .moveTo(-22, -54).lineTo(22, -54).stroke({ color: 0x76808a, width: 6 })
         .moveTo(27, 4).lineTo(27, -83).stroke({ color: 0x6a543d, width: 5 })
         .moveTo(27, -83).lineTo(20, -67).lineTo(34, -67).closePath().fill(0x9a9da1);
-    } else if (role === 'elder') {
+    } else if (ambientRole === 'elder') {
       accent
         .moveTo(20, -28).lineTo(31, 7).stroke({ color: 0x775c42, width: 5 })
         .moveTo(-9, -64).quadraticCurveTo(0, -48, 10, -64).stroke({ color: 0xd0c2ad, width: 5 });
-    } else if (role === 'traveler') {
+    } else if (ambientRole === 'traveler') {
       accent
         .moveTo(-24, -38).lineTo(20, -38).stroke({ color: 0x7d674d, width: 5 })
         .roundRect(15, -34, 20, 28, 5).fill(0x4f3e2e).stroke({ color: 0x2f251d, width: 2 });
-    } else if (role === 'resident') {
+    } else if (ambientRole === 'resident') {
       accent.roundRect(-17, -43, 34, 9, 4).fill(0x75624d);
     }
     root.scale.set(childScale);
