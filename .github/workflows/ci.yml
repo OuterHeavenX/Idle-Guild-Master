@@ -2,7 +2,7 @@ name: Validate Pull Request
 
 on:
   pull_request:
-    branches: [main, feature/dungeon-vertical-slice, feature/story-hub-first-quest, feature/story-loop-stabilization]
+    branches: [main, feature/dungeon-vertical-slice, feature/story-hub-first-quest, feature/story-loop-stabilization, feature/guild-town-authored-art]
 
 permissions:
   contents: read

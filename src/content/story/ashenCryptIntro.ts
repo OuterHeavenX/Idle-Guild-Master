@@ -21,6 +21,10 @@ export const STORY={
   {speaker:'Notice Board',text:'EASTERN CEMETERY — Grave-work suspended. Three workers missing. Guild investigation authorized.'},
   {speaker:'Notice Board',text:'Below it, a newer scrap reads: Contracts delayed until the crypt road is safe.'},
  ],
+ boardAfterClear:[
+  {speaker:'Notice Board',text:'ASHEN CRYPT — Upper chamber secured by Aldric of the Guild. Cemetery work remains suspended.'},
+  {speaker:'Notice Board',text:'A fresh note in Elira’s hand reads: The lower seal is not to be disturbed.'},
+ ],
  locked:[{speaker:'Aldric',text:'Elira barred expeditions until we report to the Guild Hall. We do this properly.'}],
  afterClearParty:[
   {speaker:'Mira',text:'That heat was not from the Ghoul. Something below it felt awake.'},
@@ -33,13 +37,14 @@ export const STORY={
   {speaker:'Steward Elira',text:'Then the upper crypt was only the beginning. Rest while you can. I want that lower seal understood before it opens itself.'},
  ],
  complete:[{speaker:'Steward Elira',text:'The guild has your report. When we go below again, we go knowing the tomb was built over something older.'}],
+ smithAfterClear:[{speaker:'Blacksmith Torren',text:'Shield’s scarred, edge is honest, and you walked back under your own power. I call that serviceable work.'}],
 } satisfies Record<string,DialogueLine[]>;
 export function objectiveFor(s:QuestState):string{
  if(s==='NOT_STARTED')return 'Speak with the Guild Steward';
  if(s==='INTRODUCED'||s==='ACCEPTED')return "Meet Aldric's party";
  if(s==='PARTY_MET')return 'Speak with the Blacksmith';
  if(s==='PREPARED')return 'Enter the Ashen Crypt';
- if(s==='ENTERED_CRYPT'||s==='CRYPT_ATTEMPTED')return 'Complete Ashen Crypt Zone 1';
+ if(s==='ENTERED_CRYPT'||s==='CRYPT_ATTEMPTED')return 'Clear the upper Ashen Crypt';
  if(s==='CRYPT_CLEARED'||s==='RETURNED_TO_GUILD')return 'Return to the Guild Steward';
  return 'Quest complete · A deeper seal is stirring';
 }

@@ -1,7 +1,90 @@
-import{EventBus}from'../core/EventBus';import type{StateManager}from'../core/StateManager';export type GameView='dungeon'|'town'|'heroes'|'blacksmith'|'raid';
-export class ViewManager{private buttons=new Map<GameView,HTMLButtonElement>();private debugBadge?:HTMLDivElement;constructor(private state:StateManager,private bus:EventBus,private root:HTMLElement){}
- mount(){const nav=document.createElement('nav');nav.className='bottom-nav';const entries:Array<[GameView,string,string]>=[['dungeon','Dungeon','⚔'],['town','Town','⌂'],['heroes','Heroes','♟'],['blacksmith','Forge','⚒'],['raid','Raid','♜']];for(const[view,label,icon]of entries){const b=document.createElement('button');b.innerHTML=`<span class="nav-icon">${icon}</span><span>${label}</span>`;b.addEventListener('click',()=>this.show(view));nav.appendChild(b);this.buttons.set(view,b);}this.root.appendChild(nav);
-  const params=new URLSearchParams(location.search);if(params.get('storydebug')==='1'){const env=(import.meta as any).env||{};let hall='PENDING';this.debugBadge=document.createElement('div');this.debugBadge.className='story-debug-badge';this.root.appendChild(this.debugBadge);const update=()=>{const sha=String(env.VITE_BUILD_SHA||'local').slice(0,10);const branch=String(env.VITE_BUILD_BRANCH||'local');this.debugBadge!.textContent=`VISUAL BUILD · ${branch} · ${sha} · ${this.root.dataset.view||'boot'} · ${this.state.story.quest} · HALL:${hall}`};window.addEventListener('town:guild-hall-status',(event)=>{hall=String((event as CustomEvent).detail?.status||'UNKNOWN');update()});this.bus.on('view:change',update);this.bus.on('save:complete',update);update()}this.show((this.state.activeView as GameView)||'town');}
- show(view:GameView){if(view==='dungeon'&&!['ENTERED_CRYPT','CRYPT_ATTEMPTED','CRYPT_CLEARED','RETURNED_TO_GUILD','COMPLETE'].includes(this.state.story.quest)){const reason=this.state.story.quest==='PREPARED'?'Walk to the Ashen Crypt gate to begin the expedition.':'Report to the Guild Steward and prepare before entering the Ashen Crypt.';this.bus.emit('story:gate-denied',{destination:'dungeon',reason});view='town';}
-  this.state.activeView=view;this.root.dataset.view=view;document.querySelectorAll<HTMLElement>('[data-view]').forEach(p=>p.hidden=p.dataset.view!==view);this.buttons.forEach((b,k)=>b.classList.toggle('active',k===view));this.bus.emit('view:change',{view});this.state.save();}
+import { EventBus } from '../core/EventBus';
+import type { StateManager, WorldLocation } from '../core/StateManager';
+
+export type MenuView = 'none' | 'dungeonInfo' | 'heroes' | 'forge' | 'raid';
+
+const LOCATION_LABELS: Record<WorldLocation, string> = {
+  town: 'GUILD TOWN',
+  guildHall: 'GUILD HALL',
+  blacksmith: 'TORREN’S FORGE',
+  ashenCrypt: 'ASHEN CRYPT',
+};
+
+export class ViewManager {
+  private buttons = new Map<MenuView, HTMLButtonElement>();
+  private debugBadge?: HTMLDivElement;
+  private menu: MenuView = 'none';
+  private location: WorldLocation;
+  private hallStatus = 'PENDING';
+
+  constructor(private state: StateManager, private bus: EventBus, private root: HTMLElement) {
+    this.location = state.world.location;
+  }
+
+  mount(): void {
+    const nav = document.createElement('nav');
+    nav.className = 'bottom-nav';
+    nav.setAttribute('aria-label', 'Game navigation');
+    const entries: Array<[MenuView, string, string]> = [
+      ['dungeonInfo', 'Crypt', '⚔'],
+      ['none', 'Explore', '⌂'],
+      ['heroes', 'Aldric', '♟'],
+      ['forge', 'Forge', '⚒'],
+      ['raid', 'Raid', '♜'],
+    ];
+    for (const [view, label, icon] of entries) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.innerHTML = `<span class="nav-icon">${icon}</span><span>${label}</span>`;
+      button.addEventListener('click', () => this.show(view));
+      nav.appendChild(button);
+      this.buttons.set(view, button);
+    }
+    this.root.appendChild(nav);
+
+    if (new URLSearchParams(location.search).get('storydebug') === '1') {
+      const env = (import.meta as any).env || {};
+      this.debugBadge = document.createElement('div');
+      this.debugBadge.className = 'story-debug-badge';
+      this.root.appendChild(this.debugBadge);
+      const update = () => {
+        const sha = String(env.VITE_BUILD_SHA || 'local').slice(0, 10);
+        const branch = String(env.VITE_BUILD_BRANCH || 'local');
+        const position = this.state.worldPosition(this.location);
+        this.debugBadge!.textContent = `RPG BUILD · ${branch} · ${sha} · ${this.location} · ${position.x.toFixed(2)},${position.y.toFixed(2)} · ${this.state.story.quest} · HALL:${this.hallStatus}`;
+      };
+      window.addEventListener('town:guild-hall-status', (event) => {
+        this.hallStatus = String((event as CustomEvent).detail?.status || 'UNKNOWN');
+        update();
+      });
+      this.bus.on('location:change', update);
+      this.bus.on('menu:change', update);
+      this.bus.on('save:complete', update);
+      update();
+    }
+
+    this.setLocation(this.location, false);
+    this.show('none', false);
+  }
+
+  setLocation(location: WorldLocation, emit = true): void {
+    this.location = location;
+    this.root.dataset.location = location;
+    const label = document.querySelector<HTMLElement>('#location');
+    if (label) label.textContent = LOCATION_LABELS[location];
+    if (emit) this.bus.emit('location:change', { location });
+  }
+
+  show(menu: MenuView, emit = true): void {
+    this.menu = menu;
+    this.root.dataset.menu = menu;
+    document.querySelectorAll<HTMLElement>('[data-menu-panel]').forEach((panel) => {
+      panel.hidden = panel.dataset.menuPanel !== menu;
+    });
+    this.buttons.forEach((button, key) => button.classList.toggle('active', key === menu));
+    if (emit) this.bus.emit('menu:change', { menu });
+  }
+
+  get currentMenu(): MenuView { return this.menu; }
+  get currentLocation(): WorldLocation { return this.location; }
 }

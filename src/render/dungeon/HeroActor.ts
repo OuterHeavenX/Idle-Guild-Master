@@ -1,78 +1,127 @@
 import { Container, Graphics, Rectangle } from 'pixi.js';
 import type { StateManager } from '../../core/StateManager';
+import type { CombatSnapshot, PlayerCombatAction } from '../../systems/CombatSystem';
 import { createHeroVisual, type HeroVisual } from './art/HeroVisualFactory';
+
+type PlayerPose = CombatSnapshot['player'];
 
 export class HeroActor extends Container {
   private visual: HeroVisual;
   private controlRing = new Graphics();
-  private time = Math.random() * 10;
-  private action = 0;
-  private hit = 0;
-  private castPulse = 0;
-  private controlled = false;
+  private guardCue = new Graphics();
+  private time = 0;
+  private hitTimer = 0;
+  private attackPulse = 0;
+  private controlled = true;
+  private action: PlayerCombatAction = 'idle';
+  private actionProgress = 0;
+  private facingX = 1;
+  private moving = false;
+  private blocking = false;
+  private guardBroken = false;
   readonly job: string;
 
-  constructor(private state: StateManager, readonly heroId: string, private index: number) {
+  constructor(private state: StateManager, readonly heroId: string, _index = 0) {
     super();
-    const hero = this.state.heroes.find((h) => h.id === this.heroId);
+    const hero = this.state.heroes.find((entry) => entry.id === this.heroId);
     this.job = hero?.jobId ?? 'guardian';
-    this.visual = createHeroVisual(this.job);
+    this.visual = createHeroVisual('guardian');
     this.hitArea = new Rectangle(-46, -104, 92, 128);
-    this.addChild(this.controlRing, this.visual.root);
+    this.addChild(this.controlRing, this.guardCue, this.visual.root);
   }
 
   setControlled(value: boolean): void {
     this.controlled = value;
-    this.eventMode = value ? 'static' : 'none';
-    this.cursor = value ? 'grab' : 'default';
+    this.eventMode = 'none';
+    this.cursor = 'default';
   }
 
-  playAttack(): void {
-    this.action = this.job === 'guardian' ? 0.3 : 0.38;
-    if (this.job === 'cleric' || this.job === 'arcanist') this.castPulse = 0.4;
+  setCombatPose(pose: PlayerPose): void {
+    this.action = pose.action;
+    this.actionProgress = Math.max(0, Math.min(1, pose.actionProgress));
+    if (Math.abs(pose.facing.x) > 0.08) this.facingX = pose.facing.x < 0 ? -1 : 1;
+    this.moving = pose.moving;
+    this.blocking = pose.blocking;
+    this.guardBroken = pose.guardBroken;
+    if (pose.hurt) this.hitTimer = Math.max(this.hitTimer, 0.08);
   }
 
-  playHeal(): void {
-    this.action = 0.42;
-    this.castPulse = 0.55;
-  }
+  playAttack(): void { this.attackPulse = 0.16; }
+  playHit(): void { this.hitTimer = Math.max(this.hitTimer, 0.2); }
 
-  playHit(): void { this.hit = 0.18; }
+  reset(): void {
+    this.visible = true;
+    this.alpha = 1;
+    this.rotation = 0;
+    this.action = 'idle';
+    this.actionProgress = 0;
+    this.hitTimer = 0;
+    this.attackPulse = 0;
+    this.blocking = false;
+    this.guardBroken = false;
+    this.visual.root.position.set(0, 0);
+    this.visual.root.rotation = 0;
+    this.visual.root.scale.set(1);
+  }
 
   update(dt: number): void {
     this.time += dt;
-    this.action = Math.max(0, this.action - dt);
-    this.hit = Math.max(0, this.hit - dt);
-    this.castPulse = Math.max(0, this.castPulse - dt);
+    this.hitTimer = Math.max(0, this.hitTimer - dt);
+    this.attackPulse = Math.max(0, this.attackPulse - dt);
 
-    const breathe = Math.sin(this.time * 2.15 + this.index * 0.8) * 1.2;
-    const hurtKick = this.hit > 0 ? Math.sin(this.hit * 85) * 2.6 : 0;
-    const attackT = this.action > 0 ? 1 - this.action / (this.job === 'guardian' ? 0.3 : 0.38) : 0;
-    const lunge = this.action > 0 ? Math.sin(Math.min(1, attackT) * Math.PI) : 0;
+    const walk = this.moving && this.action !== 'down' ? Math.sin(this.time * 11) : 0;
+    const breathe = Math.sin(this.time * 2.15) * 1.15;
+    const hurtKick = this.hitTimer > 0 ? Math.sin(this.hitTimer * 90) * 2.8 : 0;
+    let lunge = 0;
+    let lean = 0;
 
-    this.visual.root.y = breathe + hurtKick;
-    this.visual.root.x = this.job === 'guardian' ? lunge * 7 : lunge * 2;
-    this.visual.sprite.rotation = this.job === 'guardian' && this.action > 0 ? Math.sin(attackT * Math.PI) * 0.07 : Math.sin(this.time * 1.1 + this.index) * 0.008;
-    this.visual.sprite.scale.x = 1 + lunge * 0.025;
-    this.visual.sprite.scale.y = 1 - lunge * 0.018;
-    this.visual.sprite.alpha = this.hit > 0 && Math.floor(this.hit * 45) % 2 === 0 ? 0.68 : 1;
-
-    this.controlRing.clear();
-    if (this.controlled) {
-      const pulse = 0.42 + Math.sin(this.time * 3.2) * 0.12;
-      this.controlRing.ellipse(0, 7, 38, 13).stroke({ color: 0x9cc8df, width: 2, alpha: pulse });
-      this.controlRing.ellipse(0, 7, 30, 9).stroke({ color: 0xd8edf7, width: 1, alpha: pulse * 0.55 });
+    if (this.action === 'attack-windup') {
+      lunge = -5 * this.actionProgress;
+      lean = -0.07 * this.actionProgress;
+    } else if (this.action === 'attack-active') {
+      lunge = 19 * Math.sin(this.actionProgress * Math.PI * 0.78);
+      lean = 0.13 * Math.sin(this.actionProgress * Math.PI);
+    } else if (this.action === 'attack-recovery') {
+      lunge = 9 * (1 - this.actionProgress);
+      lean = 0.06 * (1 - this.actionProgress);
+    } else if (this.blocking) {
+      lunge = -4;
+      lean = -0.055;
     }
 
-    this.visual.accent.clear();
-    if (this.job === 'cleric') {
-      const pulse = 0.35 + Math.sin(this.time * 2.7) * 0.08 + (this.castPulse > 0 ? 0.28 : 0);
-      this.visual.accent.circle(22, -66, 4).fill({ color: 0xffdfa0, alpha: pulse });
-      this.visual.accent.circle(22, -66, 11).stroke({ color: 0xffd56f, width: 1, alpha: pulse * 0.45 });
-    } else if (this.job === 'arcanist') {
-      const pulse = 0.28 + Math.sin(this.time * 3.1) * 0.08 + (this.castPulse > 0 ? 0.32 : 0);
-      this.visual.accent.circle(23, -67, 5).fill({ color: 0x8edcff, alpha: pulse });
-      this.visual.accent.circle(-19, -41 + Math.sin(this.time * 2) * 3, 1.5).fill({ color: 0x9b82ff, alpha: 0.55 });
+    this.visual.root.x = this.facingX * lunge + hurtKick;
+    this.visual.root.y = breathe + Math.abs(walk) * -1.8;
+    this.visual.root.rotation = lean * this.facingX;
+    this.visual.root.scale.x = this.facingX;
+    this.visual.root.scale.y = this.action === 'down' ? 0.72 : 1;
+    this.visual.sprite.rotation = walk * 0.012 + (this.blocking ? -0.035 * this.facingX : 0);
+    this.visual.sprite.alpha = this.hitTimer > 0 && Math.floor(this.hitTimer * 52) % 2 === 0 ? 0.58 : 1;
+
+    if (this.action === 'down') {
+      this.rotation += (-1.15 - this.rotation) * Math.min(1, dt * 8);
+      this.alpha = 0.68;
+    } else {
+      this.rotation += (0 - this.rotation) * Math.min(1, dt * 12);
+      this.alpha = 1;
+    }
+
+    this.controlRing.clear();
+    if (this.controlled && this.action !== 'down') {
+      const pulse = 0.36 + Math.sin(this.time * 3.2) * 0.1;
+      this.controlRing.ellipse(0, 7, 35, 11).stroke({ color: 0x9cc8df, width: 2, alpha: pulse });
+    }
+
+    this.guardCue.clear();
+    if (this.blocking || this.guardBroken) {
+      const color = this.guardBroken ? 0xd35b55 : 0xb9d7e5;
+      const alpha = this.guardBroken ? 0.36 + Math.sin(this.time * 15) * 0.2 : 0.72;
+      const side = this.facingX;
+      this.guardCue
+        .moveTo(side * 29, -69)
+        .lineTo(side * 42, -53)
+        .lineTo(side * 38, -25)
+        .stroke({ color, width: this.guardBroken ? 2 : 4, alpha });
+      if (this.blocking) this.guardCue.ellipse(side * 31, -47, 13, 29).stroke({ color: 0xe7f1f5, width: 1, alpha: 0.42 });
     }
   }
 }

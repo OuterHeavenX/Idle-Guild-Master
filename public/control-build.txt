@@ -1,4 +1,0 @@
-Idle Guild Master controllable Guardian device-test build
-branch: feature/dungeon-vertical-slice
-commit-parent: 766a61f4e29c9166004722677039dd5a39717a00
-feature: touch/drag Aldric Guardian

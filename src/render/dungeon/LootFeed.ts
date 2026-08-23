@@ -56,6 +56,12 @@ export class LootFeed extends Container {
     if (changed) this.layoutLines();
   }
 
+  clear(): void {
+    for (const line of this.lines) line.text.destroy();
+    this.lines = [];
+    this.bg.clear();
+  }
+
   private drawBackground(): void {
     this.bg.clear();
     if (!this.lines.length) return;

@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 520" role="img" aria-label="Weathered frontier blacksmith">
+  <defs>
+    <linearGradient id="roof" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#332d2d"/><stop offset="1" stop-color="#171619"/></linearGradient>
+    <linearGradient id="timber" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#674a34"/><stop offset="1" stop-color="#34271f"/></linearGradient>
+    <linearGradient id="plaster" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#9a8065"/><stop offset="1" stop-color="#665343"/></linearGradient>
+    <linearGradient id="stone" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#68645d"/><stop offset="1" stop-color="#373632"/></linearGradient>
+    <radialGradient id="forge"><stop stop-color="#ffd18a" stop-opacity=".96"/><stop offset=".35" stop-color="#e97932" stop-opacity=".78"/><stop offset="1" stop-color="#7e2e18" stop-opacity="0"/></radialGradient>
+    <filter id="blur"><feGaussianBlur stdDeviation="14"/></filter>
+  </defs>
+
+  <ellipse cx="328" cy="484" rx="280" ry="26" fill="#161514" opacity=".35"/>
+  <circle cx="485" cy="316" r="92" fill="url(#forge)" filter="url(#blur)" opacity=".76"/>
+
+  <!-- Stone footings and plastered workshop. -->
+  <path d="M78 245h478v218H78z" fill="url(#plaster)" stroke="#332820" stroke-width="9"/>
+  <path d="M70 413h494v55H70z" fill="url(#stone)" stroke="#302f2d" stroke-width="7"/>
+  <g fill="#777067" stroke="#44413c" stroke-width="3" opacity=".86">
+    <path d="M81 417h72l-8 42H76z"/><path d="M151 417h75l6 42h-84z"/><path d="M230 417h82l-7 42h-72z"/>
+    <path d="M311 417h69l8 42h-78z"/><path d="M386 417h83l-6 42h-72z"/><path d="M470 417h83l6 42h-94z"/>
+  </g>
+
+  <!-- Roof, chimney and timber structure. -->
+  <path d="M42 253L167 105h304l132 148-35 39H79z" fill="url(#roof)" stroke="#171417" stroke-width="11" stroke-linejoin="round"/>
+  <path d="M97 229L190 129h258l92 100z" fill="#3c3433" opacity=".72"/>
+  <path d="M444 159V45h74l12 190h-87z" fill="url(#stone)" stroke="#292825" stroke-width="8"/>
+  <path d="M436 48h91l-12-26h-67z" fill="#3c3b38" stroke="#252522" stroke-width="7"/>
+  <path d="M470 39q-32-52 13-52 32 18 6 52" fill="#605952" opacity=".17"/>
+
+  <g fill="url(#timber)" stroke="#2c211a" stroke-width="4">
+    <path d="M88 245h24v171H88zM221 245h24v171h-24zM405 245h24v171h-24zM535 245h24v171h-24z"/>
+    <path d="M78 245h487v24H78zM78 393h487v25H78z"/>
+    <path d="M106 263l117 128h-31L91 282zM428 263l118 117v31L405 278z"/>
+  </g>
+
+  <!-- Door, forge window, and tool silhouettes. -->
+  <path d="M268 314q0-61 58-61t58 61v104H268z" fill="#241a16" stroke="#805c3f" stroke-width="8"/>
+  <path d="M326 262v151M278 329h96" stroke="#4d3527" stroke-width="5" opacity=".78"/>
+  <circle cx="365" cy="338" r="6" fill="#d0a368"/>
+
+  <rect x="451" y="286" width="78" height="76" rx="8" fill="#3a211a" stroke="#33221d" stroke-width="7"/>
+  <rect x="460" y="295" width="60" height="57" rx="5" fill="#e77b35" opacity=".68"/>
+  <path d="M469 350q15-45 26-17 11-40 20 17z" fill="#ffd07a" opacity=".85"/>
+
+  <g fill="none" stroke="#28282a" stroke-width="8" stroke-linecap="round">
+    <path d="M139 287v88M123 297h32"/><path d="M177 290l-19 86M168 305l24 8"/>
+  </g>
+  <g stroke="#1d1d1e" stroke-width="5" fill="#69696b">
+    <path d="M113 280h53l-12 20h-30z"/><path d="M151 276l31 4-7 25-24-7z"/>
+  </g>
+
+  <!-- Outdoor anvil and chopping/work area. -->
+  <path d="M560 392h64l-15 22h-34l-19-8z" fill="#6e7074" stroke="#26272a" stroke-width="6"/>
+  <path d="M580 412h28l7 54h-43z" fill="#44464a" stroke="#242528" stroke-width="6"/>
+  <path d="M551 466h74" stroke="#282828" stroke-width="9" stroke-linecap="round"/>
+  <rect x="32" y="395" width="78" height="20" rx="7" fill="#4f3928" stroke="#2b211a" stroke-width="5"/>
+  <path d="M48 415v48M93 415v48" stroke="#3a2b21" stroke-width="9"/>
+
+  <!-- Small forge crest: hammer over anvil, no world-space text. -->
+  <circle cx="326" cy="198" r="42" fill="#29282a" stroke="#a57945" stroke-width="6"/>
+  <path d="M304 212h45l-9 10h-28zM322 213v17" fill="#8c8e92" stroke="#d1b17b" stroke-width="4"/>
+  <path d="M302 185l38 30M297 177l18-13 12 12-17 14z" fill="#9b9da0" stroke="#332d2a" stroke-width="5" stroke-linecap="round"/>
+
+  <g fill="#d8b067" opacity=".28"><circle cx="469" cy="331" r="3"/><circle cx="490" cy="314" r="2"/><circle cx="514" cy="341" r="3"/><circle cx="455" cy="302" r="2"/></g>
+</svg>
