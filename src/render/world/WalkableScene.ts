@@ -12,15 +12,13 @@ export type WorldLocationId = WorldLocation;
 export type WalkableLocationId = Exclude<WorldLocationId, 'ashenCrypt'>;
 export type InteractionLabel = 'ENTER' | 'LEAVE' | 'TALK' | 'READ' | 'USE' | string;
 
-/** Normalized position persisted by StateManager for the fixed logical world. */
+/** Normalized position persisted by StateManager for the active logical world. */
 export type WorldPosition = SavedWorldPosition;
 
 export interface InteractionTarget {
   id: string;
   label: InteractionLabel;
-  /** Logical world-space coordinate. */
   x: number;
-  /** Logical world-space coordinate. */
   y: number;
   radius: number;
   priority: number;
@@ -52,7 +50,9 @@ const finiteClamp = (value: number, min: number, max: number, fallback: number):
 
 /**
  * Shared fixed-coordinate walking, collision and interaction implementation.
- * Scenes are intended to be constructed once and toggled through enter/leave.
+ * By default scenes retain the original 1000x1500 fitted presentation. Larger
+ * exterior scenes can override worldWidth/worldHeight and cameraFollowsPlayer
+ * without changing normalized save coordinates or interior behavior.
  */
 export abstract class WalkableWorldScene extends Container implements WalkableSceneContract {
   readonly backgroundLayer = new Container();
@@ -63,6 +63,12 @@ export abstract class WalkableWorldScene extends Container implements WalkableSc
   protected readonly player = Sprite.from(PLAYER_ASSET);
   protected readonly focusRing = new Graphics();
 
+  protected readonly worldWidth: number = WORLD_WIDTH;
+  protected readonly worldHeight: number = WORLD_HEIGHT;
+  protected readonly cameraFollowsPlayer = false;
+  protected readonly playerRadius = 24;
+  protected readonly movementSpeed = 285;
+
   private readonly collisionDebug = new Graphics();
   private inputX = 0;
   private inputY = 0;
@@ -70,14 +76,14 @@ export abstract class WalkableWorldScene extends Container implements WalkableSc
   private targetListener: (target: InteractionTarget | null) => void = () => undefined;
   private ready = false;
   private lastFacing = 1;
+  private viewportWidth = WORLD_WIDTH;
+  private viewportHeight = WORLD_HEIGHT;
+  private sceneScale = 1;
 
   protected abstract readonly colliders: readonly RectCollider[];
   protected abstract readonly targets: readonly InteractionTarget[];
   protected abstract readonly spawnPoints: Readonly<Record<string, WorldPosition>>;
   protected abstract readonly defaultSpawn: WorldPosition;
-
-  protected readonly playerRadius = 24;
-  protected readonly movementSpeed = 285;
 
   constructor(
     protected readonly state: StateManager,
@@ -134,21 +140,22 @@ export abstract class WalkableWorldScene extends Container implements WalkableSc
   }
 
   resize(width: number, height: number): void {
-    // Fill portrait devices while avoiding destructive top/bottom cropping on desktop.
+    this.viewportWidth = Math.max(1, width);
+    this.viewportHeight = Math.max(1, height);
     const portrait = height >= width * 1.15;
-    const scale = portrait
+    this.sceneScale = portrait
       ? Math.max(width / WORLD_WIDTH, height / WORLD_HEIGHT)
       : Math.min(width / WORLD_WIDTH, height / WORLD_HEIGHT);
-    this.scale.set(scale);
-    this.position.set((width - WORLD_WIDTH * scale) / 2, (height - WORLD_HEIGHT * scale) / 2);
+    this.scale.set(this.sceneScale);
+    this.applyCamera();
   }
 
   update(deltaSeconds: number): void {
     if (!this.visible || !this.ready) return;
     const dt = finiteClamp(deltaSeconds, 0, 0.05, 0);
     const position = this.readPosition();
-    const currentX = position.x * WORLD_WIDTH;
-    const currentY = position.y * WORLD_HEIGHT;
+    const currentX = position.x * this.worldWidth;
+    const currentY = position.y * this.worldHeight;
     const requestedX = currentX + this.inputX * this.movementSpeed * dt;
     const requestedY = currentY + this.inputY * this.movementSpeed * dt;
 
@@ -159,7 +166,7 @@ export abstract class WalkableWorldScene extends Container implements WalkableSc
     nextY = this.clampWorldY(requestedY);
     if (this.isBlocked(nextX, nextY)) nextY = currentY;
 
-    this.writePosition(nextX / WORLD_WIDTH, nextY / WORLD_HEIGHT);
+    this.writePosition(nextX / this.worldWidth, nextY / this.worldHeight);
     this.syncPlayer();
     if (this.inputX < -0.05) this.lastFacing = -1;
     else if (this.inputX > 0.05) this.lastFacing = 1;
@@ -190,6 +197,10 @@ export abstract class WalkableWorldScene extends Container implements WalkableSc
     this.actorLayer.addChild(actor);
   }
 
+  protected getPlayerWorldPosition(): { x: number; y: number } {
+    return { x: this.player.x, y: this.player.y };
+  }
+
   private readPosition(): WorldPosition {
     const position = this.state.worldPosition(this.location);
     const fallback = this.defaultSpawn;
@@ -207,16 +218,46 @@ export abstract class WalkableWorldScene extends Container implements WalkableSc
 
   private syncPlayer(): void {
     const position = this.readPosition();
-    this.player.position.set(position.x * WORLD_WIDTH, position.y * WORLD_HEIGHT);
+    this.player.position.set(position.x * this.worldWidth, position.y * this.worldHeight);
     this.player.zIndex = Math.round(this.player.y);
+    this.applyCamera();
+  }
+
+  private applyCamera(): void {
+    const scale = Math.max(0.0001, this.sceneScale);
+    if (!this.cameraFollowsPlayer) {
+      this.position.set(
+        (this.viewportWidth - this.worldWidth * scale) / 2,
+        (this.viewportHeight - this.worldHeight * scale) / 2,
+      );
+      return;
+    }
+
+    const visibleWidth = this.viewportWidth / scale;
+    const visibleHeight = this.viewportHeight / scale;
+    const maxLeft = Math.max(0, this.worldWidth - visibleWidth);
+    const maxTop = Math.max(0, this.worldHeight - visibleHeight);
+    const left = Math.max(0, Math.min(maxLeft, this.player.x - visibleWidth / 2));
+    const top = Math.max(0, Math.min(maxTop, this.player.y - visibleHeight / 2));
+    this.position.set(-left * scale, -top * scale);
   }
 
   private clampWorldX(value: number): number {
-    return finiteClamp(value, this.playerRadius + 48, WORLD_WIDTH - this.playerRadius - 48, WORLD_WIDTH / 2);
+    return finiteClamp(
+      value,
+      this.playerRadius + 48,
+      this.worldWidth - this.playerRadius - 48,
+      this.worldWidth / 2,
+    );
   }
 
   private clampWorldY(value: number): number {
-    return finiteClamp(value, this.playerRadius + 48, WORLD_HEIGHT - this.playerRadius - 58, WORLD_HEIGHT * 0.8);
+    return finiteClamp(
+      value,
+      this.playerRadius + 48,
+      this.worldHeight - this.playerRadius - 58,
+      this.worldHeight * 0.8,
+    );
   }
 
   private isBlocked(x: number, y: number): boolean {
@@ -231,8 +272,8 @@ export abstract class WalkableWorldScene extends Container implements WalkableSc
 
   private resolveTarget(force: boolean): void {
     const position = this.readPosition();
-    const x = position.x * WORLD_WIDTH;
-    const y = position.y * WORLD_HEIGHT;
+    const x = position.x * this.worldWidth;
+    const y = position.y * this.worldHeight;
 
     if (!force && this.target) {
       const retainedDistance = Math.hypot(x - this.target.x, y - this.target.y);
@@ -267,6 +308,9 @@ export abstract class WalkableWorldScene extends Container implements WalkableSc
 
   private drawDebug(): void {
     this.collisionDebug.clear();
+    this.collisionDebug
+      .rect(0, 0, this.worldWidth, this.worldHeight)
+      .stroke({ color: 0x87ff9d, width: 4, alpha: 0.45 });
     for (const rect of this.colliders) {
       this.collisionDebug
         .rect(rect.x, rect.y, rect.width, rect.height)
