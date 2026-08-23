@@ -14,6 +14,7 @@ export type EventMap = {
   'progress:zone-ready': { zoneLevel: number };
   'progress:zone-complete': { zoneLevel: number; gold: number; shards: number };
   'view:change': { view: string };
+  'story:gate-denied': { destination: 'dungeon'; reason: string };
   'save:complete': undefined;
   'raid:phase': { phase: number };
 };
