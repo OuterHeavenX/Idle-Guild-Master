@@ -2,7 +2,7 @@ name: Deploy Idle Guild Master to GitHub Pages
 
 on:
   push:
-    branches: [main, feature/dungeon-vertical-slice, feature/active-hero-control, feature/story-hub-first-quest, feature/story-loop-stabilization]
+    branches: [main, feature/dungeon-vertical-slice, feature/active-hero-control, feature/story-hub-first-quest, feature/story-loop-stabilization, feature/guild-town-authored-art]
   workflow_dispatch:
 
 permissions:
@@ -28,6 +28,9 @@ jobs:
         run: npm install
       - name: Build
         run: npm run build
+        env:
+          VITE_BUILD_SHA: ${{ github.sha }}
+          VITE_BUILD_BRANCH: ${{ github.ref_name }}
       - name: Configure Pages
         uses: actions/configure-pages@v5
       - name: Upload Pages artifact
