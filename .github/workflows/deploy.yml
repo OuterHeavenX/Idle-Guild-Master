@@ -2,7 +2,7 @@ name: Deploy Idle Guild Master to GitHub Pages
 
 on:
   push:
-    branches: [feature/guild-town-authored-art]
+    branches: [feature/playable-rpg-integration]
   workflow_dispatch:
 
 permissions:
@@ -16,6 +16,7 @@ concurrency:
 
 jobs:
   build:
+    if: github.ref_name == 'feature/playable-rpg-integration'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
