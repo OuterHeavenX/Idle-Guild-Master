@@ -86,6 +86,11 @@ export class CombatEffects {
     }
   }
 
+  clear(): void {
+    for (const effect of this.effects) effect.node.destroy({ children: true });
+    this.effects = [];
+  }
+
   private add(node: Container, x: number, y: number, life: number, vx: number, vy: number, kind: Effect['kind']): void {
     node.position.set(x, y);
     this.container.addChild(node);

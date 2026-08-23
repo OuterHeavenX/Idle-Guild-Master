@@ -1,0 +1,5 @@
+node_modules/
+dist/
+*.tsbuildinfo
+pages-artifact-*/
+live-pages-*.png

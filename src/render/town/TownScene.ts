@@ -1,59 +1,294 @@
-import{Assets,Container,Graphics,Sprite,Text,TextStyle}from'pixi.js';import type{StateManager}from'../../core/StateManager';
-export interface TownTarget{id:string;label:string;x:number;y:number;r:number;priority:number}
-const targets:TownTarget[]=[{id:'steward',label:'TALK',x:.50,y:.25,r:.105,priority:1},{id:'party',label:'TALK',x:.27,y:.48,r:.115,priority:2},{id:'blacksmith',label:'TALK',x:.76,y:.48,r:.11,priority:3},{id:'board',label:'READ',x:.35,y:.30,r:.085,priority:4},{id:'crypt',label:'ENTER',x:.50,y:.08,r:.105,priority:5}];
-type Rect=[number,number,number,number];
-const blocks:Rect[]=[
- [.08,.18,.38,.40], [.62,.38,.92,.64], [.07,.65,.34,.87], [.61,.70,.93,.91],
- [.405,.405,.595,.54],
- [.08,.055,.39,.105], [.61,.055,.92,.105],
+import { Assets, Container, Graphics, Sprite } from 'pixi.js';
+import type { StateManager } from '../../core/StateManager';
+import {
+  type InteractionTarget,
+  type RectCollider,
+  type WorldPosition,
+  WalkableWorldScene,
+} from '../world/WalkableScene';
+import {
+  createLantern,
+  createNpcSilhouette,
+  createTree,
+  loadOptionalSprite,
+} from '../world/WorldArt';
+
+/** Backward-compatible name used by the current PixiRenderer while it is integrated. */
+export type TownTarget = InteractionTarget;
+export type { InteractionTarget } from '../world/WalkableScene';
+
+const GUILD_HALL_ASSET = 'assets/town/buildings/guild-hall.svg';
+const BLACKSMITH_ASSET = 'assets/town/buildings/blacksmith.svg';
+
+const TOWN_TARGETS: readonly InteractionTarget[] = [
+  { id: 'guildHallDoor', label: 'ENTER', x: 248, y: 414, radius: 104, priority: 1 },
+  { id: 'blacksmithDoor', label: 'ENTER', x: 775, y: 682, radius: 104, priority: 1 },
+  { id: 'party', label: 'TALK', x: 270, y: 806, radius: 126, priority: 2 },
+  { id: 'board', label: 'READ', x: 365, y: 620, radius: 90, priority: 3 },
+  { id: 'crypt', label: 'ENTER', x: 500, y: 148, radius: 108, priority: 1 },
 ];
-const debug=new URLSearchParams(location.search).get('storydebug')==='1';
-const GUILD_HALL=new URL('assets/town/buildings/guild-hall.svg',document.baseURI).href;
-type HallStatus='REQUESTED'|'LOADED'|'FALLBACK';
-function reportHall(status:HallStatus,error?:unknown){
- window.dispatchEvent(new CustomEvent('town:guild-hall-status',{detail:{status,url:GUILD_HALL}}));
- if(debug){console.info(`[Town] Guild Hall asset ${status.toLowerCase()}: ${GUILD_HALL}`);if(error)console.error('[Town] Guild Hall asset error:',error)}
-}
-export class TownScene extends Container{
- private player=new Sprite();private vx=0;private vy=0;private speed=.205;private target:TownTarget|null=null;private onTarget:(t:TownTarget|null)=>void=()=>{};private focusRing=new Graphics();private debugLayer=new Graphics();private guildGlow=new Graphics();private elapsed=0;
- constructor(private state:StateManager){super();this.visible=false;void this.build()}
- private async build(){
-  const bg=new Graphics();
-  bg.rect(0,0,1000,1500).fill(0x6f765f);
-  bg.rect(110,170,780,1150).fill(0x887d61);
-  bg.rect(400,80,200,1240).fill(0x9a8b6a);
-  // Guild Hall forecourt integration: worn earth, threshold stones and a few grass breaks.
-  bg.roundRect(110,335,270,92,22).fill(0x7d7058);
-  bg.roundRect(230,360,155,78,18).fill(0x8e7d60);
-  for(const[x,y,r]of[[124,348,9],[151,365,6],[200,418,8],[345,410,7],[372,352,6]]as Array<[number,number,number]>)bg.circle(x,y,r).fill(0x55634b);
-  for(const[x,y,w,h]of[[240,372,58,18],[302,382,56,18],[265,407,62,16]]as Array<[number,number,number,number]>)bg.roundRect(x,y,w,h,5).fill(0x716754);
-  // Existing approved Town geometry remains intact outside the Guild Hall proof area.
-  bg.rect(620,380,300,260).fill(0x4a392b);bg.rect(70,650,270,220).fill(0x493c31);bg.rect(610,700,320,210).fill(0x46392e);bg.circle(500,710,105).fill(0x536e71);bg.circle(500,710,82).fill(0x253f49);bg.rect(80,80,310,22).fill(0x4b4a42);bg.rect(610,80,310,22).fill(0x4b4a42);this.addChild(bg);
 
-  // One authored hero building only. Keep a graceful geometric fallback if the SVG fails.
-  reportHall('REQUESTED');
-  try{await Assets.load(GUILD_HALL);const hall=Sprite.from(GUILD_HALL);hall.x=58;hall.y=116;hall.width=356;hall.height=304;this.addChild(hall);reportHall('LOADED')}catch(error){reportHall('FALLBACK',error);const fallback=new Graphics();fallback.roundRect(80,180,300,220,12).fill(0x40382f).stroke({color:0x77614a,width:5});fallback.x=0;fallback.y=0;this.addChild(fallback)}
+const TOWN_COLLIDERS: readonly RectCollider[] = [
+  // Authored buildings.
+  { x: 72, y: 150, width: 350, height: 230 },
+  { x: 616, y: 405, width: 310, height: 244 },
+  // Notice board and fountain.
+  { x: 326, y: 510, width: 78, height: 82 },
+  { x: 408, y: 750, width: 184, height: 198 },
+  // Cemetery wall with an open central gate.
+  { x: 48, y: 54, width: 354, height: 54 },
+  { x: 598, y: 54, width: 354, height: 54 },
+  // Dense edge vegetation and non-enterable silhouettes.
+  { x: 48, y: 1050, width: 128, height: 330 },
+  { x: 824, y: 1010, width: 128, height: 370 },
+  { x: 55, y: 470, width: 104, height: 250 },
+  { x: 850, y: 725, width: 102, height: 230 },
+];
 
-  this.guildGlow.ellipse(250,322,96,52).fill({color:0xd98b42,alpha:.09});this.guildGlow.blendMode='add';this.addChild(this.guildGlow);
+const SPAWNS: Readonly<Record<string, WorldPosition>> = {
+  default: { x: 0.5, y: 0.86 },
+  'town:start': { x: 0.5, y: 0.86 },
+  guildHallExit: { x: 0.248, y: 0.303 },
+  'town:guildHallExit': { x: 0.248, y: 0.303 },
+  blacksmithExit: { x: 0.775, y: 0.474 },
+  'town:blacksmithExit': { x: 0.775, y: 0.474 },
+  cryptExit: { x: 0.5, y: 0.132 },
+  'town:cryptExit': { x: 0.5, y: 0.132 },
+};
 
-  const style=new TextStyle({fontFamily:'Georgia',fontSize:28,fill:0xf5e2b7,stroke:{color:0x211810,width:4}});
-  // The Guild Hall no longer relies on a giant world-space label; the authored silhouette/crest/entrance carry its identity.
-  const labels:Array<[string,number,number]>=[['BLACKSMITH',700,500],['NOTICE BOARD',250,470],['EASTERN GATE',405,128]];
-  for(const[s,x,y]of labels){const text=new Text({text:s,style});text.x=x;text.y=y;this.addChild(text)}
+export class TownScene extends WalkableWorldScene {
+  protected readonly colliders = TOWN_COLLIDERS;
+  protected readonly targets = TOWN_TARGETS;
+  protected readonly spawnPoints = SPAWNS;
+  protected readonly defaultSpawn = SPAWNS.default!;
 
-  const npc=(x:number,y:number,body:number,skin=0xc69b78)=>{const g=new Graphics();g.circle(0,0,32).fill(body);g.circle(0,-28,18).fill(skin);g.x=x*1000;g.y=y*1500;this.addChild(g)};
-  npc(.50,.25,0x3f4057);npc(.76,.48,0x6f3b26);npc(.235,.475,0x665c62);npc(.275,.49,0x3e4e45);npc(.31,.47,0x353850);
-  this.focusRing.visible=false;this.addChild(this.focusRing);
-  await Assets.load('assets/dungeon/ashen-crypt/heroes/guardian.svg');this.player=Sprite.from('assets/dungeon/ashen-crypt/heroes/guardian.svg');this.player.anchor.set(.5,.82);this.player.width=82;this.player.height=108;this.addChild(this.player);
-  if(debug){this.drawDebug();this.addChild(this.debugLayer)}this.syncPlayer();
- }
- setTargetListener(fn:(t:TownTarget|null)=>void){this.onTarget=fn}
- setInput(x:number,y:number){this.vx=Number.isFinite(x)?Math.max(-1,Math.min(1,x)):0;this.vy=Number.isFinite(y)?Math.max(-1,Math.min(1,y)):0}
- resize(w:number,h:number){const scale=Math.max(w/1000,h/1500);this.scale.set(scale);this.x=(w-1000*scale)/2;this.y=(h-1500*scale)/2}
- private syncPlayer(){this.player.x=this.state.story.playerX*1000;this.player.y=this.state.story.playerY*1500}
- private blocked(x:number,y:number){return blocks.some(([l,t,r,b])=>x>l&&x<r&&y>t&&y<b)}
- private drawDebug(){this.debugLayer.clear();for(const[l,t,r,b]of blocks)this.debugLayer.rect(l*1000,t*1500,(r-l)*1000,(b-t)*1500).stroke({color:0xff5b5b,width:3,alpha:.75});for(const t of targets)this.debugLayer.circle(t.x*1000,t.y*1500,t.r*1000).stroke({color:0x65d9ff,width:2,alpha:.6})}
- private updateFocus(t:TownTarget|null){this.focusRing.clear();if(!t){this.focusRing.visible=false;return}this.focusRing.visible=true;this.focusRing.circle(t.x*1000,t.y*1500,42).stroke({color:0xf0ce85,width:4,alpha:.65})}
- update(dt:number){if(!this.visible)return;this.elapsed+=dt;this.guildGlow.alpha=.72+Math.sin(this.elapsed*2.2)*.12;const ox=this.state.story.playerX,oy=this.state.story.playerY;const nx=Math.max(.08,Math.min(.92,ox+this.vx*this.speed*dt)),ny=Math.max(.12,Math.min(.88,oy+this.vy*this.speed*dt));let x=ox,y=oy;if(!this.blocked(nx,oy))x=nx;if(!this.blocked(x,ny))y=ny;this.state.setTownPosition(x,y);this.syncPlayer();if(this.vx<-.05)this.player.scale.x=-Math.abs(this.player.scale.x||1);else if(this.vx>.05)this.player.scale.x=Math.abs(this.player.scale.x||1);const eligible=targets.map(t=>({t,d:Math.hypot(x-t.x,(y-t.y)*1.5)})).filter(v=>v.d<v.t.r).sort((a,b)=>Math.abs(a.d-b.d)>.008?a.d-b.d:a.t.priority-b.t.priority);const best=eligible[0]?.t||null;if(best?.id!==this.target?.id){this.target=best;this.updateFocus(best);this.onTarget(best)}}
- get interactionTarget(){return this.target}
+  private readonly guildGlow = new Graphics();
+  private readonly forgeGlow = new Graphics();
+  private hallStatus: 'REQUESTED' | 'LOADED' | 'FALLBACK' = 'REQUESTED';
+  private hallUrl = new URL(GUILD_HALL_ASSET, document.baseURI).href;
+  private elapsed = 0;
+
+  constructor(state: StateManager) {
+    super(state, 'town');
+    this.drawGround();
+    this.drawCemeteryApproach();
+    this.drawNoticeBoard();
+    this.drawFountainAndPlaza();
+    this.drawTownEdges();
+    this.drawParty();
+    this.drawLight();
+    this.finishScene();
+    void this.loadBuildings();
+  }
+
+  override update(deltaSeconds: number): void {
+    super.update(deltaSeconds);
+    if (!this.visible) return;
+    this.elapsed += Math.max(0, deltaSeconds);
+    this.guildGlow.alpha = 0.72 + Math.sin(this.elapsed * 2.15) * 0.12;
+    this.forgeGlow.alpha = 0.76 + Math.sin(this.elapsed * 3.8 + 0.8) * 0.14;
+  }
+
+  private drawGround(): void {
+    const ground = new Graphics();
+    ground.rect(0, 0, 1000, 1500).fill(0x536047);
+
+    // Weathered roads: a central north/south route with compact building branches.
+    ground
+      .roundRect(408, 90, 184, 1370, 72).fill(0x89785c)
+      .roundRect(180, 350, 420, 122, 46).fill(0x837257)
+      .roundRect(390, 586, 405, 126, 48).fill(0x89765a)
+      .roundRect(245, 720, 510, 350, 132).fill(0x8e8067)
+      .roundRect(350, 1020, 300, 390, 78).fill(0x837158);
+
+    const stones: Array<[number, number, number, number]> = [
+      [460, 118, 82, 25], [438, 176, 58, 21], [510, 214, 62, 23],
+      [236, 393, 70, 22], [322, 408, 74, 20], [446, 472, 76, 24],
+      [627, 628, 72, 21], [527, 1102, 68, 22], [425, 1228, 75, 20],
+      [514, 1341, 66, 22],
+    ];
+    for (const [x, y, width, height] of stones) {
+      ground.roundRect(x, y, width, height, 8).fill({ color: 0x665f52, alpha: 0.74 });
+    }
+    for (const [x, y, radius] of [
+      [194, 462, 10], [305, 342, 8], [602, 539, 9], [706, 720, 12],
+      [374, 1034, 9], [652, 1175, 8], [335, 1320, 11],
+    ] as Array<[number, number, number]>) {
+      ground.circle(x, y, radius).fill(0x41543d);
+    }
+    this.backgroundLayer.addChild(ground);
+  }
+
+  private drawCemeteryApproach(): void {
+    const cemetery = new Graphics();
+    cemetery
+      .rect(48, 54, 354, 54).fill(0x3d3d39).stroke({ color: 0x222421, width: 4 })
+      .rect(598, 54, 354, 54).fill(0x3d3d39).stroke({ color: 0x222421, width: 4 })
+      .rect(395, 36, 18, 105).fill(0x272a28)
+      .rect(587, 36, 18, 105).fill(0x272a28)
+      .moveTo(413, 58).lineTo(492, 88).lineTo(492, 143).stroke({ color: 0x202322, width: 7 })
+      .moveTo(587, 58).lineTo(508, 88).lineTo(508, 143).stroke({ color: 0x202322, width: 7 });
+
+    for (const [x, y, width, height] of [
+      [646, 132, 42, 68], [718, 158, 34, 56], [790, 120, 44, 74], [865, 171, 32, 52],
+    ] as Array<[number, number, number, number]>) {
+      cemetery
+        .roundRect(x, y, width, height, 12).fill(0x55544f).stroke({ color: 0x343632, width: 3 })
+        .rect(x - 7, y + height - 5, width + 14, 10).fill(0x42443f);
+    }
+    cemetery
+      .ellipse(500, 149, 96, 30).fill({ color: 0xb7c0b4, alpha: 0.055 })
+      .ellipse(525, 190, 135, 24).fill({ color: 0xc5c7bf, alpha: 0.035 });
+    this.worldLayer.addChild(cemetery);
+  }
+
+  private drawNoticeBoard(): void {
+    const board = new Graphics();
+    board
+      .rect(333, 525, 64, 59).fill(0x493523).stroke({ color: 0x241a13, width: 5 })
+      .rect(322, 511, 86, 17).fill(0x34251a)
+      .rect(337, 584, 9, 50).fill(0x34271d)
+      .rect(386, 584, 9, 50).fill(0x34271d)
+      .roundRect(341, 536, 23, 31, 2).fill(0xd0bb88)
+      .roundRect(369, 533, 20, 35, 2).fill(0xbca779)
+      .circle(354, 539, 2).fill(0x8f3932)
+      .circle(381, 536, 2).fill(0x8f3932);
+    this.worldLayer.addChild(board);
+  }
+
+  private drawFountainAndPlaza(): void {
+    const plaza = new Graphics();
+    plaza.ellipse(500, 850, 235, 188).fill({ color: 0x706a5d, alpha: 0.64 });
+    for (let ring = 0; ring < 3; ring += 1) {
+      plaza.ellipse(500, 850, 205 - ring * 26, 158 - ring * 22)
+        .stroke({ color: 0x9b927d, width: 4, alpha: 0.38 });
+    }
+    plaza
+      .ellipse(500, 876, 92, 72).fill(0x4b4e4a).stroke({ color: 0x2d312f, width: 6 })
+      .ellipse(500, 866, 78, 55).fill(0x315565)
+      .ellipse(500, 858, 70, 43).fill({ color: 0x6ca1aa, alpha: 0.56 })
+      .rect(478, 784, 44, 77).fill(0x5c5d56).stroke({ color: 0x393b38, width: 4 })
+      .ellipse(500, 789, 34, 17).fill(0x686963)
+      .circle(500, 775, 9).fill({ color: 0xa9d9dc, alpha: 0.65 })
+      .moveTo(500, 777).bezierCurveTo(472, 806, 468, 833, 458, 851)
+      .moveTo(500, 777).bezierCurveTo(528, 806, 532, 833, 542, 851)
+      .stroke({ color: 0x8fc8ce, width: 5, alpha: 0.62 });
+    this.worldLayer.addChild(plaza);
+  }
+
+  private drawTownEdges(): void {
+    const facades = new Graphics();
+    facades
+      .roundRect(32, 1035, 144, 352, 14).fill(0x3c352b).stroke({ color: 0x27231e, width: 5 })
+      .moveTo(20, 1060).lineTo(104, 970).lineTo(190, 1060).closePath().fill(0x2b2825)
+      .roundRect(824, 1000, 144, 390, 14).fill(0x40362b).stroke({ color: 0x29231d, width: 5 })
+      .moveTo(808, 1026).lineTo(892, 930).lineTo(982, 1026).closePath().fill(0x2c2824);
+    this.worldLayer.addChild(facades);
+
+    const treePositions: Array<[number, number, number]> = [
+      [70, 440, 1.15], [116, 760, 1], [72, 980, 1.2], [930, 350, 1.08],
+      [934, 725, 1.16], [890, 930, 0.94], [235, 1385, 1.2], [760, 1390, 1.18],
+    ];
+    for (const [x, y, scale] of treePositions) {
+      const tree = createTree(scale);
+      this.positionActor(tree, x, y);
+    }
+
+    const props = new Graphics();
+    props
+      .roundRect(612, 690, 32, 36, 6).fill(0x57402c).stroke({ color: 0x2e2219, width: 3 })
+      .roundRect(652, 704, 28, 32, 6).fill(0x4e3828).stroke({ color: 0x2e2219, width: 3 })
+      .ellipse(622, 724, 22, 7).stroke({ color: 0x8c7050, width: 3 })
+      .moveTo(180, 1110).lineTo(320, 1110).stroke({ color: 0x4a3828, width: 12 })
+      .moveTo(195, 1085).lineTo(195, 1140).moveTo(302, 1085).lineTo(302, 1140)
+      .stroke({ color: 0x35281e, width: 8 });
+    this.worldLayer.addChild(props);
+  }
+
+  private drawParty(): void {
+    this.positionActor(createNpcSilhouette('cleric'), 215, 795);
+    this.positionActor(createNpcSilhouette('ranger'), 278, 816);
+    this.positionActor(createNpcSilhouette('arcanist'), 337, 790);
+  }
+
+  private drawLight(): void {
+    this.guildGlow.ellipse(248, 377, 106, 38).fill({ color: 0xd98b42, alpha: 0.09 });
+    this.guildGlow.blendMode = 'add';
+    this.forgeGlow.ellipse(770, 625, 84, 44).fill({ color: 0xff7a32, alpha: 0.12 });
+    this.forgeGlow.blendMode = 'add';
+    this.worldLayer.addChild(this.guildGlow, this.forgeGlow);
+
+    for (const [x, y] of [[437, 470], [596, 675], [382, 1075], [618, 1190]] as Array<[number, number]>) {
+      this.positionActor(createLantern(), x, y);
+    }
+  }
+
+  private async loadBuildings(): Promise<void> {
+    await Promise.all([this.loadGuildHall(), this.loadBlacksmith()]);
+  }
+
+  private async loadGuildHall(): Promise<void> {
+    const url = new URL(GUILD_HALL_ASSET, document.baseURI).href;
+    this.reportHall('REQUESTED', url);
+    try {
+      await Assets.load(url);
+      const hall = Sprite.from(url);
+      hall.position.set(45, 82);
+      hall.width = 396;
+      hall.height = 332;
+      this.worldLayer.addChild(hall);
+      this.reportHall('LOADED', url);
+    } catch (error) {
+      this.worldLayer.addChild(this.createGuildHallFallback());
+      this.reportHall('FALLBACK', url, error);
+    }
+  }
+
+  private async loadBlacksmith(): Promise<void> {
+    const smithy = await loadOptionalSprite(
+      BLACKSMITH_ASSET,
+      (sprite) => {
+        sprite.position.set(590, 350);
+        sprite.width = 365;
+        sprite.height = 330;
+      },
+      () => this.createBlacksmithFallback(),
+    );
+    this.worldLayer.addChild(smithy);
+  }
+
+  private createGuildHallFallback(): Container {
+    return new Graphics()
+      .roundRect(72, 190, 350, 190, 12).fill(0x493e33).stroke({ color: 0x74614c, width: 6 })
+      .moveTo(52, 210).lineTo(248, 92).lineTo(442, 210).closePath().fill(0x292527)
+      .roundRect(214, 292, 72, 88, 8).fill(0x261b16).stroke({ color: 0x8a603d, width: 5 })
+      .circle(248, 210, 31).fill(0x30353a).stroke({ color: 0xc09755, width: 5 })
+      .moveTo(248, 186).lineTo(248, 235).moveTo(226, 210).lineTo(270, 210)
+      .stroke({ color: 0xc09755, width: 5 });
+  }
+
+  private createBlacksmithFallback(): Container {
+    return new Graphics()
+      .roundRect(616, 435, 310, 214, 10).fill(0x49382c).stroke({ color: 0x725640, width: 6 })
+      .moveTo(594, 465).lineTo(760, 350).lineTo(950, 465).closePath().fill(0x292526)
+      .rect(852, 338, 46, 118).fill(0x504941).stroke({ color: 0x2c2926, width: 5 })
+      .roundRect(742, 557, 70, 92, 7).fill(0x211814).stroke({ color: 0x8a5c38, width: 5 })
+      .roundRect(630, 515, 78, 62, 7).fill({ color: 0xf08b43, alpha: 0.56 })
+      .moveTo(651, 575).lineTo(690, 575).lineTo(681, 595).lineTo(642, 595).closePath().fill(0x303033);
+  }
+
+  private reportHall(status: 'REQUESTED' | 'LOADED' | 'FALLBACK', url: string, error?: unknown): void {
+    this.hallStatus = status;
+    this.hallUrl = url;
+    const publish = () => window.dispatchEvent(new CustomEvent('town:guild-hall-status', {
+      detail: { status: this.hallStatus, url: this.hallUrl },
+    }));
+    publish();
+    // ViewManager is mounted immediately after Pixi initialization. Re-publishing on
+    // the next task prevents a warm browser cache from making the debug status race it.
+    window.setTimeout(publish, 0);
+    if (!this.isStoryDebug()) return;
+    console.info(`[Town] Guild Hall asset ${status.toLowerCase()}: ${url}`);
+    if (error) console.error('[Town] Guild Hall asset error:', error);
+  }
 }
