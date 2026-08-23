@@ -31,6 +31,13 @@ jobs:
         env:
           VITE_BUILD_SHA: ${{ github.sha }}
           VITE_BUILD_BRANCH: ${{ github.ref_name }}
+      - name: Create branch-specific acceptance copy
+        if: github.ref_name == 'feature/guild-town-authored-art'
+        run: |
+          mkdir -p dist/guild-town-authored-art
+          cp -R dist/assets dist/guild-town-authored-art/assets
+          cp dist/index.html dist/guild-town-authored-art/index.html
+          if [ -f dist/deploy-visual-proof.txt ]; then cp dist/deploy-visual-proof.txt dist/guild-town-authored-art/deploy-visual-proof.txt; fi
       - name: Configure Pages
         uses: actions/configure-pages@v5
       - name: Upload Pages artifact
