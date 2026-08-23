@@ -8,7 +8,12 @@ const blocks:Rect[]=[
  [.08,.055,.39,.105], [.61,.055,.92,.105],
 ];
 const debug=new URLSearchParams(location.search).get('storydebug')==='1';
-const GUILD_HALL='assets/town/buildings/guild-hall.svg';
+const GUILD_HALL=new URL('assets/town/buildings/guild-hall.svg',document.baseURI).href;
+type HallStatus='REQUESTED'|'LOADED'|'FALLBACK';
+function reportHall(status:HallStatus,error?:unknown){
+ window.dispatchEvent(new CustomEvent('town:guild-hall-status',{detail:{status,url:GUILD_HALL}}));
+ if(debug){console.info(`[Town] Guild Hall asset ${status.toLowerCase()}: ${GUILD_HALL}`);if(error)console.error('[Town] Guild Hall asset error:',error)}
+}
 export class TownScene extends Container{
  private player=new Sprite();private vx=0;private vy=0;private speed=.205;private target:TownTarget|null=null;private onTarget:(t:TownTarget|null)=>void=()=>{};private focusRing=new Graphics();private debugLayer=new Graphics();private guildGlow=new Graphics();private elapsed=0;
  constructor(private state:StateManager){super();this.visible=false;void this.build()}
@@ -26,7 +31,8 @@ export class TownScene extends Container{
   bg.rect(620,380,300,260).fill(0x4a392b);bg.rect(70,650,270,220).fill(0x493c31);bg.rect(610,700,320,210).fill(0x46392e);bg.circle(500,710,105).fill(0x536e71);bg.circle(500,710,82).fill(0x253f49);bg.rect(80,80,310,22).fill(0x4b4a42);bg.rect(610,80,310,22).fill(0x4b4a42);this.addChild(bg);
 
   // One authored hero building only. Keep a graceful geometric fallback if the SVG fails.
-  try{await Assets.load(GUILD_HALL);const hall=Sprite.from(GUILD_HALL);hall.x=58;hall.y=116;hall.width=356;hall.height=304;this.addChild(hall)}catch(error){console.warn('[town] Guild Hall art failed to load; using fallback.',error);const fallback=new Graphics();fallback.roundRect(80,180,300,220,12).fill(0x40382f).stroke({color:0x77614a,width:5});fallback.x=0;fallback.y=0;this.addChild(fallback)}
+  reportHall('REQUESTED');
+  try{await Assets.load(GUILD_HALL);const hall=Sprite.from(GUILD_HALL);hall.x=58;hall.y=116;hall.width=356;hall.height=304;this.addChild(hall);reportHall('LOADED')}catch(error){reportHall('FALLBACK',error);const fallback=new Graphics();fallback.roundRect(80,180,300,220,12).fill(0x40382f).stroke({color:0x77614a,width:5});fallback.x=0;fallback.y=0;this.addChild(fallback)}
 
   this.guildGlow.ellipse(250,322,96,52).fill({color:0xd98b42,alpha:.09});this.guildGlow.blendMode='add';this.addChild(this.guildGlow);
 
