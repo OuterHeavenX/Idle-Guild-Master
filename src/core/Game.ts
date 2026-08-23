@@ -1,5 +1,5 @@
 import { EventBus } from './EventBus';
-import { StateManager } from './StateManager';
+import { StateManager, type GameSave } from './StateManager';
 import { OfflineEngine } from './OfflineEngine';
 import { Party } from '../models/Party';
 import { CombatSystem } from '../systems/CombatSystem';
@@ -19,16 +19,18 @@ export class Game {
   private partyA!: Party;
   private partyB!: Party;
   private lastFrame = performance.now();
-  private accumulated = 0;
   private animationFrame = 0;
+  private autosaveTimer = 0;
+  private started = false;
+  private paused = false;
+  private disposers: Array<() => void> = [];
 
   constructor(private pixi: PixiRenderer, private three: ThreeRenderer) {}
 
-  start(): void {
+  /** Must run before renderer construction or any view is mounted. Never saves defaults before reading. */
+  hydrate(): GameSave | null {
     const loaded = this.state.load();
-    this.partyA = new Party('A', this.state.heroes.slice(0, 4));
-    this.partyB = new Party('B', this.state.heroes.slice(4, 8));
-
+    this.createParties();
     if (loaded) {
       const result = this.offline.calculate(
         loaded.savedAt,
@@ -37,28 +39,69 @@ export class Game {
         this.partyA.averageLevel,
         this.state.zoneLevel,
         1,
-        this.state.guild.facilities.expeditionHQ
+        this.state.guild.facilities.expeditionHQ,
       );
-      this.state.guild.gold += result.gold;
+      if (result.gold > 0) {
+        this.state.guild.gold += result.gold;
+        // Advance the offline watermark immediately so a rapid reload cannot award it twice.
+        this.state.save();
+      }
     }
+    return loaded;
+  }
 
-    window.setInterval(() => this.state.save(), 10_000);
-    window.addEventListener('beforeunload', () => this.state.save());
-    window.addEventListener('resize', () => this.resize());
+  start(): void {
+    if (this.started) return;
+    this.started = true;
+    if (!this.partyA || !this.partyB) this.createParties();
 
-    this.bus.on('loot:drop', () => {
-      this.state.guild.gold += 25;
-      this.state.guild.shards += 1;
-      this.bounties.progress('daily-kills', 1, this.state.guild);
-    });
+    this.disposers.push(
+      this.bus.on('loot:drop', ({ gold = 0, shards = 0 }) => {
+        this.state.guild.gold += gold;
+        this.state.guild.shards += shards;
+        this.bounties.progress('daily-kills', 1, this.state.guild);
+        this.state.save();
+      }),
+      this.bus.on('progress:zone-complete', ({ gold, shards }) => {
+        this.state.guild.gold += gold;
+        this.state.guild.shards += shards;
+        this.state.save();
+      }),
+    );
 
+    const resize = () => this.resize();
+    const beforeUnload = () => this.state.save();
+    addEventListener('resize', resize);
+    addEventListener('beforeunload', beforeUnload);
+    this.disposers.push(
+      () => removeEventListener('resize', resize),
+      () => removeEventListener('beforeunload', beforeUnload),
+    );
+
+    this.autosaveTimer = window.setInterval(() => this.state.save(), 10_000);
     this.resize();
+    this.lastFrame = performance.now();
     this.animationFrame = requestAnimationFrame(this.frame);
+    // First-time players receive a durable V2 save only after hydration and UI composition.
+    let hasCurrentSave = false;
+    try { hasCurrentSave = Boolean(localStorage.getItem('idle-guild-master-save')); }
+    catch { /* StateManager reports unavailable storage without aborting boot. */ }
+    if (!hasCurrentSave) this.state.save();
   }
 
   stop(): void {
+    if (!this.started) return;
+    this.started = false;
     cancelAnimationFrame(this.animationFrame);
+    window.clearInterval(this.autosaveTimer);
+    this.combat.leave();
+    for (const dispose of this.disposers.splice(0)) dispose();
     this.state.save();
+  }
+
+  setPaused(paused: boolean): void {
+    this.paused = paused;
+    if (paused) this.combat.setMove(0, 0);
   }
 
   startRaid(): void {
@@ -66,19 +109,18 @@ export class Game {
     this.bounties.progress('weekly-raids', 1, this.state.guild);
   }
 
+  private createParties(): void {
+    this.partyA = new Party('A', this.state.heroes.slice(0, 4));
+    this.partyB = new Party('B', this.state.heroes.slice(4, 8));
+  }
+
   private frame = (now: number): void => {
-    const deltaSeconds = Math.min(0.1, (now - this.lastFrame) / 1000);
+    if (!this.started) return;
+    const dt = Math.min(0.1, Math.max(0, (now - this.lastFrame) / 1000));
     this.lastFrame = now;
-    this.accumulated += deltaSeconds;
-
-    while (this.accumulated >= 1) {
-      this.combat.tick(this.partyA, this.state.zoneLevel);
-      this.raid.tick(this.partyA, this.partyB);
-      this.accumulated -= 1;
-    }
-
-    this.pixi.update(deltaSeconds);
-    this.three.render(deltaSeconds);
+    if (!this.paused && this.state.world.location === 'ashenCrypt') this.combat.update(dt);
+    if (!this.paused) this.pixi.update(dt);
+    if (!this.paused && this.state.world.location === 'ashenCrypt') this.three.render(dt);
     this.animationFrame = requestAnimationFrame(this.frame);
   };
 

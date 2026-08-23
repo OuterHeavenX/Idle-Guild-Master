@@ -19,7 +19,9 @@ export const DEFAULT_LOOT_TABLE: LootTableEntry[] = [
 ];
 
 export const CRAFTING_RECIPES = {
-  weapon: { gold: 100, shards: 10 },
-  armor: { gold: 90, shards: 8 },
-  accessory: { gold: 120, shards: 12 }
+  // Common starter work uses Gold so Torren's service is meaningful before the
+  // first Crypt run. Shards remain the post-dungeon salvage/refinement material.
+  weapon: { gold: 140, shards: 0 },
+  armor: { gold: 130, shards: 0 },
+  accessory: { gold: 160, shards: 0 }
 } as const;

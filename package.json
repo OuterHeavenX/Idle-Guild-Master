@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "test": "node scripts/integration-validation.mjs && node scripts/long-rain-validation.mjs",
     "build": "tsc -b && vite build",
     "preview": "vite preview"
   },
