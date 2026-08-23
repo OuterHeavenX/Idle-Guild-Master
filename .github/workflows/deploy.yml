@@ -2,7 +2,7 @@ name: Deploy Idle Guild Master to GitHub Pages
 
 on:
   push:
-    branches: [feature/long-rain-expanded-guild-town]
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -16,7 +16,7 @@ concurrency:
 
 jobs:
   build:
-    if: github.ref_name == 'feature/long-rain-expanded-guild-town'
+    if: github.ref_name == 'main'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -37,7 +37,7 @@ jobs:
       - name: Write deployment provenance
         run: |
           node -e "require('node:fs').writeFileSync('dist/build-info.json', JSON.stringify({ branch: process.env.GITHUB_REF_NAME, sha: process.env.GITHUB_SHA, builtAt: new Date().toISOString() }, null, 2) + '\n')"
-      - name: Prepare root and branch preview
+      - name: Prepare Pages artifact
         run: |
           rm -rf page-artifact
           mkdir -p page-artifact/long-rain-expanded-guild-town
